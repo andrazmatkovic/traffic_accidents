@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Slovenian Traffic Accidents - Interactive Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <!-- Leaflet MarkerCluster -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/MarkerCluster.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/MarkerCluster.Default.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 100px);
+            gap: 0;
+        }
+        
+        .sidebar {
+            width: 340px;
+            background: white;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .loading-bar {
+            width: 100%;
+            height: 4px;
+            background: #e0e0e0;
+            border-radius: 2px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.2s;
+        }
+        
+        .filter-section {
+            margin-bottom: 25px;
+        }
+        
+        .filter-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+        
+        .filter-select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+            background: white;
+        }
+        
+        .filter-option {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-option input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            accent-color: #667eea;
+        }
+        
+        .filter-option label {
+            cursor: pointer;
+            font-size: 13px;
+            flex: 1;
+        }
+        
+        .filter-option input[type="checkbox"]:checked + label {
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .toggle-btn {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        
+        .toggle-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .stats-panel {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        
+        .stat-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .stat-value {
+            color: #667eea;
+            font-weight: 700;
+        }
+        
+        .color-legend {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 12px;
+        }
+        
+        .color-legend h4 {
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 1px solid #999;
+        }
+        
+        .legend-text {
+            font-size: 12px;
+        }
+        
+        .reset-btn {
+            width: 100%;
+            padding: 12px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+        
+        .reset-btn:hover {
+            background: #c82333;
+        }
+        
+        .filter-checkbox-list {
+            max-height: 150px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+        
+        .filter-checkbox-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .filter-checkbox-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .filter-checkbox-list::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        .filter-checkbox-list::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Slovenian Traffic Accidents - Interactive Map</h1>
+        <p>Filter by year, severity, type, weather, and more</p>
+    </div>
+    
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="loading" id="loadingMsg">
+                📂 Loading and decompressing data...
+                <div class="loading-bar">
+                    <div class="loading-progress" id="loadingProgress"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+    
+    <!-- Pako for decompression -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    
+    <!-- Leaflet -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <!-- Leaflet MarkerCluster -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/leaflet.markercluster.min.js"></script>
+    <!-- Leaflet Heat -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    
+    <script>
+        let allData = [];
+        let map = null;
+        let state = {
+            showMarkers: true,
+            showClusters: false,
+            showHeatmap: false,
+            selectedYear: [],
+            selectedSeverities: [],
+            selectedTypes: [],
+            selectedWeather: [],
+            selectedTraffic: [],
+            selectedRoadSurface: [],
+            selectedLocationTypes: [],
+            markerGroup: L.featureGroup(),
+            clusterGroup: L.markerClusterGroup(),
+            heatmapLayer: null
+        };
+        
+        // Load compressed JSON file
+        async function loadCompressedJSON() {
+            try {
+                const response = await fetch('accidents.json.gz');
+                if (!response.ok) throw new Error('Failed to load data file');
+                
+                const arrayBuffer = await response.arrayBuffer();
+                const startTime = performance.now();
+                
+                // Decompress
+                const decompressed = pako.inflate(new Uint8Array(arrayBuffer), { to: 'string' });
+                
+                // Parse JSON
+                allData = JSON.parse(decompressed).filter(row => 
+                    !isNaN(row.latitude) && !isNaN(row.longitude)
+                );
+                
+                const loadTime = (performance.now() - startTime) / 1000;
+                console.log(`Loaded ${allData.length} accidents in ${loadTime.toFixed(2)}s`);
+                initializeApp();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('loadingMsg').textContent = 
+                    `Error loading data: ${error.message}\n\nMake sure 'accidents.json.gz' is in the same folder.`;
+            }
+        }
+        
+        function initializeApp() {
+            // Initialize map centered on Ljubljana
+            map = L.map('map').setView([46.0569, 14.5058], 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            // Extract unique filter values
+            const years = [...new Set(allData.map(a => a.year))].sort((a, b) => a - b);
+            const severities = [...new Set(allData.map(a => a.KlasifikacijaNesrece))].sort();
+            const types = [...new Set(allData.map(a => a.TipNesrece))].sort();
+            const weather = [...new Set(allData.map(a => a.VremenskeOkoliscine))].filter(x => x).sort();
+            const traffic = [...new Set(allData.map(a => a.StanjePrometa))].filter(x => x).sort();
+            const roadSurface = [...new Set(allData.map(a => a.StanjeVozisca))].filter(x => x).sort();
+            const locationTypes = [...new Set(allData.map(a => a.VNaselju))].filter(x => x).sort();
+            
+            state.selectedYear = years;
+            state.selectedSeverities = severities;
+            state.selectedTypes = types;
+            state.selectedWeather = weather;
+            state.selectedTraffic = traffic;
+            state.selectedRoadSurface = roadSurface;
+            state.selectedLocationTypes = locationTypes;
+            
+            // Build UI
+            buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes);
+            updateMap();
+        }
+        
+        function buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes) {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.innerHTML = `
+                <!-- Visualization Toggles -->
+                <div class="filter-section">
+                    <h3>📊 Visualization</h3>
+                    <button class="toggle-btn active" id="markerToggle">🔴 Show Clustered Markers</button>
+                    <button class="toggle-btn" id="clusterToggle">📍 Show Alternative View</button>
+                    <button class="toggle-btn" id="heatmapToggle">🔥 Show Heatmap</button>
+                </div>
+                
+                <!-- Year Filter -->
+                <div class="filter-section">
+                    <h3>📅 Year</h3>
+                    <select class="filter-select" id="yearFilter">
+                        <option value="">-- All Years --</option>
+                    </select>
+                </div>
+                
+                <!-- Severity Filter -->
+                <div class="filter-section">
+                    <h3>⚠️ Accident Severity</h3>
+                    <div class="filter-checkbox-list" id="severityList"></div>
+                </div>
+                
+                <!-- Type Filter -->
+                <div class="filter-section">
+                    <h3>🔀 Accident Type</h3>
+                    <div class="filter-checkbox-list" id="typeList"></div>
+                </div>
+                
+                <!-- Weather Filter -->
+                <div class="filter-section">
+                    <h3>🌦️ Weather</h3>
+                    <div class="filter-checkbox-list" id="weatherList"></div>
+                </div>
+                
+                <!-- Traffic Filter -->
+                <div class="filter-section">
+                    <h3>🚦 Traffic Conditions</h3>
+                    <div class="filter-checkbox-list" id="trafficList"></div>
+                </div>
+                
+                <!-- Road Surface Filter -->
+                <div class="filter-section">
+                    <h3>🛣️ Road Surface</h3>
+                    <div class="filter-checkbox-list" id="roadList"></div>
+                </div>
+                
+                <!-- Location Filter -->
+                <div class="filter-section">
+                    <h3>📍 Location Type</h3>
+                    <div class="filter-checkbox-list" id="locationList"></div>
+                </div>
+                
+                <!-- Statistics -->
+                <div class="stats-panel">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Showing:</span>
+                        <span class="stat-value" id="statCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Serious Injuries:</span>
+                        <span class="stat-value" id="statSerious">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Minor Injuries:</span>
+                        <span class="stat-value" id="statMinor">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Property Damage:</span>
+                        <span class="stat-value" id="statProperty">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Fatal:</span>
+                        <span class="stat-value" id="statFatal">0</span>
+                    </div>
+                </div>
+                
+                <!-- Legend -->
+                <div class="color-legend">
+                    <h4>Color Legend</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc3545;"></div>
+                        <span class="legend-text">Serious Injury</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #fd7e14;"></div>
+                        <span class="legend-text">Minor Injury</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #8b0000;"></div>
+                        <span class="legend-text">Fatal</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #0066cc;"></div>
+                        <span class="legend-text">Property Damage</span>
+                    </div>
+                    <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+                    <h4 style="margin-top: 10px;">Heatmap Intensity</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #0066cc;"></div>
+                        <span class="legend-text">Low Density</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #ff0000;"></div>
+                        <span class="legend-text">High Density (Fatal)</span>
+                    </div>
+                </div>
+                
+                <button class="reset-btn" id="resetBtn">Reset All Filters</button>
+            `;
+            
+            // Populate year dropdown
+            const yearFilter = document.getElementById('yearFilter');
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearFilter.appendChild(option);
+            });
+            yearFilter.addEventListener('change', updateMap);
+            
+            // Populate checkboxes
+            populateCheckboxes('severityList', severities, 'severity');
+            populateCheckboxes('typeList', types, 'type');
+            populateCheckboxes('weatherList', weather, 'weather');
+            populateCheckboxes('trafficList', traffic, 'traffic');
+            populateCheckboxes('roadList', roadSurface, 'road');
+            populateCheckboxes('locationList', locationTypes, 'location');
+            
+            // Event listeners
+            document.getElementById('markerToggle').addEventListener('click', function() {
+                if (!this.classList.contains('active')) {
+                    state.showMarkers = true;
+                    state.showClusters = false;
+                    state.showHeatmap = false;
+                    document.getElementById('clusterToggle').classList.remove('active');
+                    document.getElementById('heatmapToggle').classList.remove('active');
+                    this.classList.add('active');
+                    updateMap();
+                }
+            });
+            
+            document.getElementById('clusterToggle').addEventListener('click', function() {
+                if (!this.classList.contains('active')) {
+                    state.showMarkers = false;
+                    state.showClusters = true;
+                    state.showHeatmap = false;
+                    document.getElementById('markerToggle').classList.remove('active');
+                    document.getElementById('heatmapToggle').classList.remove('active');
+                    this.classList.add('active');
+                    updateMap();
+                }
+            });
+            
+            document.getElementById('heatmapToggle').addEventListener('click', function() {
+                if (!this.classList.contains('active')) {
+                    state.showMarkers = false;
+                    state.showClusters = false;
+                    state.showHeatmap = true;
+                    document.getElementById('markerToggle').classList.remove('active');
+                    document.getElementById('clusterToggle').classList.remove('active');
+                    this.classList.add('active');
+                    updateMap();
+                }
+            });
+            
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                document.querySelectorAll('.filter-option input').forEach(cb => cb.checked = true);
+                document.getElementById('yearFilter').value = '';
+                state.selectedYear = years;
+                state.showMarkers = true;
+                state.showClusters = false;
+                state.showHeatmap = false;
+                document.getElementById('markerToggle').classList.add('active');
+                document.getElementById('clusterToggle').classList.remove('active');
+                document.getElementById('heatmapToggle').classList.remove('active');
+                updateMap();
+            });
+        }
+        
+        function populateCheckboxes(elementId, items, filterType) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            items.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'filter-option';
+                const id = filterType + '-' + idx;
+                div.innerHTML = `<input type="checkbox" id="${id}" class="${filterType}-filter" checked>
+                                 <label for="${id}">${item}</label>`;
+                container.appendChild(div);
+            });
+            
+            // Map filter types to correct state keys
+            const stateKeyMap = {
+                'severity': 'selectedSeverities',
+                'type': 'selectedTypes',
+                'weather': 'selectedWeather',
+                'traffic': 'selectedTraffic',
+                'road': 'selectedRoadSurface',
+                'location': 'selectedLocationTypes'
+            };
+            
+            document.querySelectorAll(`.${filterType}-filter`).forEach((checkbox) => {
+                checkbox.addEventListener('change', () => {
+                    const items_list = document.querySelectorAll(`.${filterType}-filter`);
+                    const stateKey = stateKeyMap[filterType];
+                    
+                    // Map checked checkboxes back to their original items using ID index
+                    state[stateKey] = Array.from(items_list)
+                        .filter(cb => cb.checked)
+                        .map(cb => {
+                            // Extract index from checkbox ID (format: "filtertype-idx")
+                            const idx = parseInt(cb.id.split('-')[1]);
+                            return items[idx];
+                        });
+                    
+                    console.log('Updated', stateKey, ':', state[stateKey]);
+                    updateMap();
+                });
+            });
+        }
+        
+        function getSeverityColor(severity) {
+            if (severity.includes('LAJO TELESNO')) return '#dc3545';
+            if (severity.includes('HUDO TELESNO')) return '#fd7e14';
+            if (severity.includes('SMRTNI')) return '#8b0000';
+            return '#0066cc';
+        }
+        
+        function getFilteredAccidents() {
+            return allData.filter(accident => {
+                const yearFilter = document.getElementById('yearFilter');
+                const selectedYear = yearFilter.value ? parseInt(yearFilter.value) : null;
+                
+                const passYear = !selectedYear || accident.year === selectedYear;
+                const passSeverity = state.selectedSeverities.includes(accident.KlasifikacijaNesrece);
+                const passType = state.selectedTypes.includes(accident.TipNesrece);
+                const passWeather = state.selectedWeather.length === 0 || state.selectedWeather.includes(accident.VremenskeOkoliscine);
+                const passTraffic = state.selectedTraffic.length === 0 || state.selectedTraffic.includes(accident.StanjePrometa);
+                const passRoad = state.selectedRoadSurface.length === 0 || state.selectedRoadSurface.includes(accident.StanjeVozisca);
+                const passLocation = state.selectedLocationTypes.length === 0 || state.selectedLocationTypes.includes(accident.VNaselju);
+                
+                return passYear && passSeverity && passType && passWeather && passTraffic && passRoad && passLocation;
+            });
+        }
+        
+        function updateMap() {
+            const filtered = getFilteredAccidents();
+            const currentZoom = map.getZoom();
+            
+            // Clean up all layers
+            try {
+                if (state.markerGroup && map.hasLayer(state.markerGroup)) {
+                    map.removeLayer(state.markerGroup);
+                }
+            } catch (e) { console.log('Error removing marker group:', e); }
+            
+            try {
+                if (state.clusterGroup && map.hasLayer(state.clusterGroup)) {
+                    map.removeLayer(state.clusterGroup);
+                }
+            } catch (e) { console.log('Error removing cluster group:', e); }
+            
+            try {
+                if (state.heatmapLayer && map.hasLayer(state.heatmapLayer)) {
+                    map.removeLayer(state.heatmapLayer);
+                }
+            } catch (e) { console.log('Error removing heatmap:', e); }
+            
+            if (state.showMarkers) {
+                // Always use clustering for markers - much faster
+                state.markerGroup = L.markerClusterGroup({
+                    maxClusterRadius: currentZoom < 14 ? 80 : 50,
+                    disableClusteringAtZoom: 17,
+                    chunkInterval: 200
+                });
+                
+                filtered.forEach(accident => {
+                    const color = getSeverityColor(accident.KlasifikacijaNesrece);
+                    const popup = `<div style="font-family: Arial; font-size: 12px;">
+                        <b>${accident.TekstCesteNaselja}</b><br>
+                        <small>Date: ${accident.DatumPN} ${accident.UraPN}</small><br>
+                        <small>Type: ${accident.TipNesrece}</small><br>
+                        <small>Severity: ${accident.KlasifikacijaNesrece}</small>
+                    </div>`;
+                    
+                    const marker = L.marker([accident.latitude, accident.longitude], {
+                        icon: L.icon({
+                            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="' + color + '"><circle cx="7" cy="7" r="6" stroke="white" stroke-width="1"/></svg>'),
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                        })
+                    });
+                    marker.bindPopup(popup);
+                    state.markerGroup.addLayer(marker);
+                });
+                
+                map.addLayer(state.markerGroup);
+            }
+            
+            if (state.showClusters) {
+                state.clusterGroup = L.markerClusterGroup({
+                    maxClusterRadius: 70,
+                    disableClusteringAtZoom: 16,
+                    chunkInterval: 200
+                });
+                
+                filtered.forEach(accident => {
+                    const color = getSeverityColor(accident.KlasifikacijaNesrece);
+                    const marker = L.marker([accident.latitude, accident.longitude], {
+                        icon: L.icon({
+                            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="' + color + '"><path d="M10 1C5.04 1 1 5.04 1 10s4.04 9 9 9 9-4.04 9-9-4.04-9-9-9z"/></svg>'),
+                            iconSize: [18, 18],
+                            iconAnchor: [9, 9]
+                        })
+                    });
+                    state.clusterGroup.addLayer(marker);
+                });
+                
+                map.addLayer(state.clusterGroup);
+            }
+            
+            if (state.showHeatmap) {
+                // Create heatmap data with weighted severity
+                const heatmapData = filtered.map(accident => {
+                    let intensity = 0.2; // default for property damage
+                    if (accident.KlasifikacijaNesrece.includes('SMRTNI')) intensity = 1.0; // fatal
+                    else if (accident.KlasifikacijaNesrece.includes('HUDO TELESNO')) intensity = 0.8; // serious
+                    else if (accident.KlasifikacijaNesrece.includes('LAJO TELESNO')) intensity = 0.5; // minor
+                    
+                    return [accident.latitude, accident.longitude, intensity];
+                });
+                
+                console.log('Creating heatmap with', heatmapData.length, 'points');
+                
+                state.heatmapLayer = L.heatLayer(heatmapData, {
+                    radius: 18,
+                    blur: 12,
+                    maxZoom: 16,
+                    minOpacity: 0.1,
+                    max: 1.0,
+                    gradient: {
+                        0.0: 'rgba(0, 102, 204, 0)',    // transparent blue
+                        0.2: 'rgba(0, 204, 0, 0.4)',    // semi-transparent green
+                        0.4: 'rgba(255, 255, 0, 0.5)',  // semi-transparent yellow
+                        0.6: 'rgba(255, 102, 0, 0.6)',  // semi-transparent orange
+                        1.0: 'rgba(255, 0, 0, 0.8)'     // semi-transparent red
+                    }
+                });
+                
+                map.addLayer(state.heatmapLayer);
+                console.log('Heatmap layer added to map');
+            }
+            
+            updateStats(filtered);
+        }
+        
+        function updateStats(accidents) {
+            const stats = {
+                total: accidents.length,
+                serious: 0,
+                minor: 0,
+                property: 0,
+                fatal: 0
+            };
+            
+            accidents.forEach(a => {
+                if (a.KlasifikacijaNesrece.includes('LAJO TELESNO')) stats.serious++;
+                else if (a.KlasifikacijaNesrece.includes('HUDO TELESNO')) stats.minor++;
+                else if (a.KlasifikacijaNesrece.includes('SMRTNI')) stats.fatal++;
+                else stats.property++;
+            });
+            
+            document.getElementById('statCount').textContent = stats.total.toLocaleString();
+            document.getElementById('statSerious').textContent = stats.serious;
+            document.getElementById('statMinor').textContent = stats.minor;
+            document.getElementById('statProperty').textContent = stats.property;
+            document.getElementById('statFatal').textContent = stats.fatal;
+        }
+        
+        loadCompressedJSON();
+    </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                 INTERACTIVE ACCIDENT MAP - QUICK START GUIDE               ║
+║                                                                            ║
+║  Your new CSV-based interactive map is ready! 🎉                          ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+📂 FILES CREATED:
+================
+
+1. 🗺️ index.html (24 KB)
+   → OPEN THIS IN YOUR BROWSER to see the interactive map
+   → Works offline once loaded
+   → Loads data from JSON files automatically
+
+2. 📊 accidents.csv (550 KB)
+   → Your accident data (3,666 unique locations)
+   → 14 columns with all relevant information
+   → UTF-8 encoded, ready to expand
+
+3. 📖 README.md
+   → Complete documentation
+   → Instructions for adding new years of data
+   → Troubleshooting guide
+   → How to customize the map
+
+4. 🛠️  manage_csv.py
+   → Python utility for managing CSV files
+   → Convert coordinates from D96/TM to WGS84
+   → Merge multiple CSV files
+   → Validate CSV structure
+   → Get statistics
+
+
+✨ KEY FEATURES:
+================
+
+📅 Year Filter
+   → View data from specific years
+   → Automatically detects all years in CSV
+   → Add new years by expanding CSV file
+
+🎨 Visualization Modes
+   → Markers: See individual accidents
+   → Clusters: Group nearby accidents
+
+📈 Live Statistics
+   → Real-time counts as you filter
+   → Breakdown by severity level
+
+🔍 Interactive Map
+   → Click markers for details
+   → Zoom in/out
+   → Pan around
+   → Offline after loading
+
+
+📚 CSV STRUCTURE:
+=================
+
+Your CSV file has these columns:
+  1. ZaporednaStevilkaPN    - Unique accident ID
+  2. year                   - Year (e.g., 2024)
+  3. DatumPN                - Date (DD.MM.YYYY format)
+  4. UraPN                  - Time
+  5. TekstCesteNaselja      - Street name
+  6. TipNesrece             - Accident type
+  7. KlasifikacijaNesrece   - Severity level
+  8. VremenskeOkoliscine    - Weather conditions
+  9. StanjePrometa          - Traffic conditions
+  10. StanjeVozisca         - Road surface condition
+  11. VNaselju              - In settlement? (DA/NE)
+  12. Lokacija              - Location type
+  13. latitude              - WGS84 latitude
+  14. longitude             - WGS84 longitude
+
+
+🎯 ADDING NEW DATA:
+===================
+
+Use Python script
+  
+  # Convert raw data to WGS84 coordinates:
+  python3 manage_csv.py convert pn2025.csv
+  
+  # Merge multiple files:
+  python3 manage_csv.py merge /folder/with/csvs combined.csv
+  
+  # Validate your CSV:
+  python3 manage_csv.py validate accidents.csv
+  
+  # Get statistics:
+  python3 manage_csv.py stats accidents.csv

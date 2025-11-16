@@ -304,6 +304,38 @@
             background: #ccc;
             border-radius: 10px;
         }
+
+        .filter-buttons {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .filter-btn {
+            flex: 1;
+            padding: 5px;
+            font-size: 11px;
+            border: 1px solid #667eea;
+            border-radius: 3px;
+            background: white;
+            color: #667eea;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .filter-btn.deselect {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .filter-btn.deselect:hover {
+            background: #fff5f5;
+        }
         
         /* Mobile Responsive Design */
         @media (max-width: 768px) {
@@ -474,6 +506,7 @@
         let map = null;
         let expandedWebs = new Set();
         let spiderMarkers = {};
+        let updateMapTimeout = null;
         
         let state = {
             showMarkers: true,
@@ -488,6 +521,11 @@
             markerGroup: null,
             heatmapLayer: null
         };
+        
+        function debouncedUpdateMap() {
+            if (updateMapTimeout) clearTimeout(updateMapTimeout);
+            updateMapTimeout = setTimeout(updateMap, 150);
+        }
         
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
@@ -677,7 +715,7 @@
                 yearFilter.appendChild(option);
             });
             yearFilter.addEventListener('change', () => {
-                updateMap();
+                debouncedUpdateMap();
                 closeSidebarOnMobile();
             });
             
@@ -694,7 +732,7 @@
                     state.showHeatmap = false;
                     document.getElementById('heatmapToggle').classList.remove('active');
                     this.classList.add('active');
-                    updateMap();
+                    debouncedUpdateMap();
                 }
             });
             
@@ -704,7 +742,7 @@
                     state.showHeatmap = true;
                     document.getElementById('markerToggle').classList.remove('active');
                     this.classList.add('active');
-                    updateMap();
+                    debouncedUpdateMap();
                 }
             });
             
@@ -716,7 +754,7 @@
                 state.showHeatmap = false;
                 document.getElementById('markerToggle').classList.add('active');
                 document.getElementById('heatmapToggle').classList.remove('active');
-                updateMap();
+                debouncedUpdateMap();
                 closeSidebarOnMobile();
             });
         }
@@ -724,6 +762,23 @@
         function populateCheckboxes(elementId, items, filterType) {
             const container = document.getElementById(elementId);
             container.innerHTML = '';
+            
+            // Add Select All / Deselect All buttons
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'filter-buttons';
+            
+            const selectAllBtn = document.createElement('button');
+            selectAllBtn.className = 'filter-btn';
+            selectAllBtn.textContent = 'Select All';
+            
+            const deselectAllBtn = document.createElement('button');
+            deselectAllBtn.className = 'filter-btn deselect';
+            deselectAllBtn.textContent = 'Deselect All';
+            
+            buttonContainer.appendChild(selectAllBtn);
+            buttonContainer.appendChild(deselectAllBtn);
+            container.appendChild(buttonContainer);
+            
             items.forEach((item, idx) => {
                 const div = document.createElement('div');
                 div.className = 'filter-option';
@@ -742,20 +797,32 @@
                 'location': 'selectedLocationTypes'
             };
             
+            selectAllBtn.addEventListener('click', () => {
+                document.querySelectorAll(`.${filterType}-filter`).forEach(cb => cb.checked = true);
+                updateFilterState();
+            });
+            
+            deselectAllBtn.addEventListener('click', () => {
+                document.querySelectorAll(`.${filterType}-filter`).forEach(cb => cb.checked = false);
+                updateFilterState();
+            });
+            
+            function updateFilterState() {
+                const items_list = document.querySelectorAll(`.${filterType}-filter`);
+                const stateKey = stateKeyMap[filterType];
+                
+                state[stateKey] = Array.from(items_list)
+                    .filter(cb => cb.checked)
+                    .map(cb => {
+                        const idx = parseInt(cb.id.split('-')[1]);
+                        return items[idx];
+                    });
+                
+                debouncedUpdateMap();
+            }
+            
             document.querySelectorAll(`.${filterType}-filter`).forEach((checkbox) => {
-                checkbox.addEventListener('change', () => {
-                    const items_list = document.querySelectorAll(`.${filterType}-filter`);
-                    const stateKey = stateKeyMap[filterType];
-                    
-                    state[stateKey] = Array.from(items_list)
-                        .filter(cb => cb.checked)
-                        .map(cb => {
-                            const idx = parseInt(cb.id.split('-')[1]);
-                            return items[idx];
-                        });
-                    
-                    updateMap();
-                });
+                checkbox.addEventListener('change', updateFilterState);
             });
         }
         
@@ -774,10 +841,10 @@
                 const passYear = !selectedYear || accident.year === selectedYear;
                 const passSeverity = state.selectedSeverities.includes(accident.KlasifikacijaNesrece);
                 const passType = state.selectedTypes.includes(accident.TipNesrece);
-                const passWeather = state.selectedWeather.length === 0 || state.selectedWeather.includes(accident.VremenskeOkoliscine);
-                const passTraffic = state.selectedTraffic.length === 0 || state.selectedTraffic.includes(accident.StanjePrometa);
-                const passRoad = state.selectedRoadSurface.length === 0 || state.selectedRoadSurface.includes(accident.StanjeVozisca);
-                const passLocation = state.selectedLocationTypes.length === 0 || state.selectedLocationTypes.includes(accident.VNaselju);
+                const passWeather = state.selectedWeather.includes(accident.VremenskeOkoliscine) || !accident.VremenskeOkoliscine;
+                const passTraffic = state.selectedTraffic.includes(accident.StanjePrometa) || !accident.StanjePrometa;
+                const passRoad = state.selectedRoadSurface.includes(accident.StanjeVozisca) || !accident.StanjeVozisca;
+                const passLocation = state.selectedLocationTypes.includes(accident.VNaselju) || !accident.VNaselju;
                 
                 return passYear && passSeverity && passType && passWeather && passTraffic && passRoad && passLocation;
             });

@@ -464,22 +464,19 @@
         </div>
     </div>
     
-    <!-- Pako for decompression -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
-    
-    <!-- Leaflet -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-    <!-- Leaflet MarkerCluster -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/leaflet.markercluster.min.js"></script>
-    <!-- Leaflet Heat -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     
     <script>
         let allData = [];
         let map = null;
+        let expandedWebs = new Set();
+        let spiderMarkers = {};
+        
         let state = {
             showMarkers: true,
-            showClusters: false,
             showHeatmap: false,
             selectedYear: [],
             selectedSeverities: [],
@@ -488,12 +485,10 @@
             selectedTraffic: [],
             selectedRoadSurface: [],
             selectedLocationTypes: [],
-            markerGroup: L.featureGroup(),
-            clusterGroup: L.markerClusterGroup(),
+            markerGroup: null,
             heatmapLayer: null
         };
         
-        // Mobile menu toggle
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -508,7 +503,6 @@
             sidebarOverlay.classList.remove('open');
         });
         
-        // Close sidebar when a filter changes on mobile
         function closeSidebarOnMobile() {
             if (window.innerWidth <= 768) {
                 sidebar.classList.remove('open');
@@ -516,7 +510,6 @@
             }
         }
         
-        // Load compressed JSON file
         async function loadCompressedJSON() {
             try {
                 const response = await fetch('accidents.json.gz');
@@ -525,10 +518,7 @@
                 const arrayBuffer = await response.arrayBuffer();
                 const startTime = performance.now();
                 
-                // Decompress
                 const decompressed = pako.inflate(new Uint8Array(arrayBuffer), { to: 'string' });
-                
-                // Parse JSON
                 allData = JSON.parse(decompressed).filter(row => 
                     !isNaN(row.latitude) && !isNaN(row.longitude)
                 );
@@ -539,12 +529,11 @@
             } catch (error) {
                 console.error('Error loading data:', error);
                 document.getElementById('loadingMsg').textContent = 
-                    `Error loading data: ${error.message}\n\nMake sure 'accidents.json.gz' is in the same folder.`;
+                    `Error loading data: ${error.message}`;
             }
         }
         
         function initializeApp() {
-            // Initialize map centered on Ljubljana
             map = L.map('map').setView([46.0569, 14.5058], 12);
             
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -552,7 +541,6 @@
                 maxZoom: 19
             }).addTo(map);
             
-            // Extract unique filter values
             const years = [...new Set(allData.map(a => a.year))].sort((a, b) => a - b);
             const severities = [...new Set(allData.map(a => a.KlasifikacijaNesrece))].sort();
             const types = [...new Set(allData.map(a => a.TipNesrece))].sort();
@@ -569,7 +557,6 @@
             state.selectedRoadSurface = roadSurface;
             state.selectedLocationTypes = locationTypes;
             
-            // Build UI
             buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes);
             updateMap();
         }
@@ -577,15 +564,12 @@
         function buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes) {
             const sidebar = document.getElementById('sidebar');
             sidebar.innerHTML = `
-                <!-- Visualization Toggles -->
                 <div class="filter-section">
                     <h3>📊 Visualization</h3>
                     <button class="toggle-btn active" id="markerToggle">🔴 Markers</button>
-                    <button class="toggle-btn" id="clusterToggle">📍 Alternative</button>
                     <button class="toggle-btn" id="heatmapToggle">🔥 Heatmap</button>
                 </div>
                 
-                <!-- Year Filter -->
                 <div class="filter-section">
                     <h3>📅 Year</h3>
                     <select class="filter-select" id="yearFilter">
@@ -593,43 +577,36 @@
                     </select>
                 </div>
                 
-                <!-- Severity Filter -->
                 <div class="filter-section">
                     <h3>⚠️ Severity</h3>
                     <div class="filter-checkbox-list" id="severityList"></div>
                 </div>
                 
-                <!-- Type Filter -->
                 <div class="filter-section">
                     <h3>🔀 Type</h3>
                     <div class="filter-checkbox-list" id="typeList"></div>
                 </div>
                 
-                <!-- Weather Filter -->
                 <div class="filter-section">
                     <h3>🌦️ Weather</h3>
                     <div class="filter-checkbox-list" id="weatherList"></div>
                 </div>
                 
-                <!-- Traffic Filter -->
                 <div class="filter-section">
                     <h3>🚦 Traffic</h3>
                     <div class="filter-checkbox-list" id="trafficList"></div>
                 </div>
                 
-                <!-- Road Surface Filter -->
                 <div class="filter-section">
                     <h3>🛣️ Road Surface</h3>
                     <div class="filter-checkbox-list" id="roadList"></div>
                 </div>
                 
-                <!-- Location Filter -->
                 <div class="filter-section">
                     <h3>📍 Location Type</h3>
                     <div class="filter-checkbox-list" id="locationList"></div>
                 </div>
                 
-                <!-- Statistics -->
                 <div class="stats-panel">
                     <div class="stat-item">
                         <span class="stat-label">Total:</span>
@@ -653,7 +630,6 @@
                     </div>
                 </div>
                 
-                <!-- Legend -->
                 <div class="color-legend">
                     <h4>Color Legend</h4>
                     <div class="legend-item">
@@ -673,6 +649,12 @@
                         <span class="legend-text">Property Damage</span>
                     </div>
                     <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
+                    <h4 style="margin-top: 8px;">Multi-Accident Locations</h4>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #667eea; border: 2px solid white;"></div>
+                        <span class="legend-text">Multiple accidents - click to toggle</span>
+                    </div>
+                    <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
                     <h4 style="margin-top: 8px;">Heatmap</h4>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #0066cc;"></div>
@@ -687,7 +669,6 @@
                 <button class="reset-btn" id="resetBtn">Reset All</button>
             `;
             
-            // Populate year dropdown
             const yearFilter = document.getElementById('yearFilter');
             years.forEach(year => {
                 const option = document.createElement('option');
@@ -700,7 +681,6 @@
                 closeSidebarOnMobile();
             });
             
-            // Populate checkboxes
             populateCheckboxes('severityList', severities, 'severity');
             populateCheckboxes('typeList', types, 'type');
             populateCheckboxes('weatherList', weather, 'weather');
@@ -708,25 +688,10 @@
             populateCheckboxes('roadList', roadSurface, 'road');
             populateCheckboxes('locationList', locationTypes, 'location');
             
-            // Event listeners
             document.getElementById('markerToggle').addEventListener('click', function() {
                 if (!this.classList.contains('active')) {
                     state.showMarkers = true;
-                    state.showClusters = false;
                     state.showHeatmap = false;
-                    document.getElementById('clusterToggle').classList.remove('active');
-                    document.getElementById('heatmapToggle').classList.remove('active');
-                    this.classList.add('active');
-                    updateMap();
-                }
-            });
-            
-            document.getElementById('clusterToggle').addEventListener('click', function() {
-                if (!this.classList.contains('active')) {
-                    state.showMarkers = false;
-                    state.showClusters = true;
-                    state.showHeatmap = false;
-                    document.getElementById('markerToggle').classList.remove('active');
                     document.getElementById('heatmapToggle').classList.remove('active');
                     this.classList.add('active');
                     updateMap();
@@ -736,10 +701,8 @@
             document.getElementById('heatmapToggle').addEventListener('click', function() {
                 if (!this.classList.contains('active')) {
                     state.showMarkers = false;
-                    state.showClusters = false;
                     state.showHeatmap = true;
                     document.getElementById('markerToggle').classList.remove('active');
-                    document.getElementById('clusterToggle').classList.remove('active');
                     this.classList.add('active');
                     updateMap();
                 }
@@ -750,10 +713,8 @@
                 document.getElementById('yearFilter').value = '';
                 state.selectedYear = years;
                 state.showMarkers = true;
-                state.showClusters = false;
                 state.showHeatmap = false;
                 document.getElementById('markerToggle').classList.add('active');
-                document.getElementById('clusterToggle').classList.remove('active');
                 document.getElementById('heatmapToggle').classList.remove('active');
                 updateMap();
                 closeSidebarOnMobile();
@@ -772,7 +733,6 @@
                 container.appendChild(div);
             });
             
-            // Map filter types to correct state keys
             const stateKeyMap = {
                 'severity': 'selectedSeverities',
                 'type': 'selectedTypes',
@@ -794,7 +754,6 @@
                             return items[idx];
                         });
                     
-                    console.log('Updated', stateKey, ':', state[stateKey]);
                     updateMap();
                 });
             });
@@ -824,94 +783,206 @@
             });
         }
         
+        function groupAccidentsByLocation(accidents) {
+            const locationMap = {};
+            accidents.forEach(accident => {
+                const key = `${accident.latitude},${accident.longitude}`;
+                if (!locationMap[key]) {
+                    locationMap[key] = [];
+                }
+                locationMap[key].push(accident);
+            });
+            return locationMap;
+        }
+        
+        function createSmartMarker(latlng, accidents, isMultiple) {
+            const color = getSeverityColor(accidents[0].KlasifikacijaNesrece);
+            
+            let popupContent = '';
+            if (isMultiple) {
+                popupContent = `<div style="font-family: Arial, sans-serif; font-size: 12px;">
+                    <b>${accidents.length} accidents at this location</b><br>
+                    <small style="color: #666;">Click marker to spread them out →</small>
+                </div>`;
+            } else {
+                const a = accidents[0];
+                popupContent = `<div style="font-family: Arial, sans-serif; font-size: 12px;">
+                    <b>${a.TekstCesteNaselja}</b><br>
+                    <small>Date: ${a.DatumPN} ${a.UraPN}</small><br>
+                    <small>Type: ${a.TipNesrece}</small><br>
+                    <small>Severity: ${a.KlasifikacijaNesrece}</small>
+                </div>`;
+            }
+            
+            let iconSize = [12, 12];
+            let svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="${color}"><circle cx="7" cy="7" r="6" stroke="white" stroke-width="1"/></svg>`;
+            
+            if (isMultiple) {
+                iconSize = [24, 24];
+                svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" fill="${color}" stroke="white" stroke-width="2"/>
+                    <circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="1.5" opacity="0.8"/>
+                    <text x="12" y="16" font-size="10" font-weight="bold" fill="white" text-anchor="middle" font-family="Arial, sans-serif">${accidents.length}</text>
+                </svg>`;
+            }
+            
+            const marker = L.marker(latlng, {
+                icon: L.icon({
+                    iconUrl: 'data:image/svg+xml;base64,' + btoa(svgContent),
+                    iconSize: iconSize,
+                    iconAnchor: [iconSize[0]/2, iconSize[0]/2]
+                })
+            });
+            
+            marker.accidentCount = accidents.length;
+            marker.bindPopup(popupContent);
+            
+            if (isMultiple) {
+                const locationKey = `${latlng.lat},${latlng.lng}`;
+                marker.on('click', function(e) {
+                    if (expandedWebs.has(locationKey)) {
+                        collapseWeb(locationKey);
+                    } else {
+                        spreadMarkersInWeb(latlng, accidents, color, locationKey);
+                        expandedWebs.add(locationKey);
+                    }
+                    e.originalEvent.stopPropagation();
+                });
+            }
+            
+            return marker;
+        }
+        
+        function spreadMarkersInWeb(centerLatlng, accidents, baseColor, locationKey) {
+            const radius = 0.0006;
+            const count = accidents.length;
+            const angleSlice = (Math.PI * 2) / Math.max(count, 1);
+            
+            spiderMarkers[locationKey] = [];
+            
+            accidents.forEach((accident, index) => {
+                const angle = angleSlice * index;
+                const cosLat = Math.cos(centerLatlng.lat * Math.PI / 180);
+                const offsetLat = centerLatlng.lat + (radius * Math.cos(angle));
+                const offsetLng = centerLatlng.lng + (radius * Math.sin(angle) / cosLat);
+                
+                const color = getSeverityColor(accident.KlasifikacijaNesrece);
+                const popupContent = `<div style="font-family: Arial, sans-serif; font-size: 12px;">
+                    <b>${accident.TekstCesteNaselja}</b><br>
+                    <small>Date: ${accident.DatumPN} ${accident.UraPN}</small><br>
+                    <small>Type: ${accident.TipNesrece}</small><br>
+                    <small>Severity: ${accident.KlasifikacijaNesrece}</small><br>
+                    <hr style="margin: 4px 0; border: none; border-top: 1px solid #ddd;">
+                    <small style="color: #999;">Part of ${count} accidents here</small>
+                </div>`;
+                
+                const spiderMarker = L.marker([offsetLat, offsetLng], {
+                    icon: L.icon({
+                        iconUrl: 'data:image/svg+xml;base64,' + btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="${color}"><circle cx="7" cy="7" r="5" stroke="white" stroke-width="1.5"/></svg>`),
+                        iconSize: [14, 14],
+                        iconAnchor: [7, 7]
+                    })
+                });
+                
+                spiderMarker.bindPopup(popupContent);
+                spiderMarker.addTo(state.markerGroup);
+                spiderMarkers[locationKey].push(spiderMarker);
+                
+                const line = L.polyline([centerLatlng, [offsetLat, offsetLng]], {
+                    color: baseColor,
+                    weight: 1,
+                    opacity: 0.4,
+                    dashArray: '3, 3'
+                });
+                line.addTo(state.markerGroup);
+                spiderMarkers[locationKey].push(line);
+            });
+        }
+        
+        function collapseWeb(locationKey) {
+            if (spiderMarkers[locationKey]) {
+                spiderMarkers[locationKey].forEach(item => {
+                    state.markerGroup.removeLayer(item);
+                });
+                expandedWebs.delete(locationKey);
+                delete spiderMarkers[locationKey];
+            }
+        }
+        
         function updateMap() {
             const filtered = getFilteredAccidents();
             const currentZoom = map.getZoom();
             
-            // Clean up all layers
-            try {
-                if (state.markerGroup && map.hasLayer(state.markerGroup)) {
-                    map.removeLayer(state.markerGroup);
+            expandedWebs.forEach(key => {
+                if (spiderMarkers[key]) {
+                    collapseWeb(key);
                 }
-            } catch (e) { console.log('Error removing marker group:', e); }
+            });
+            expandedWebs.clear();
             
-            try {
-                if (state.clusterGroup && map.hasLayer(state.clusterGroup)) {
-                    map.removeLayer(state.clusterGroup);
-                }
-            } catch (e) { console.log('Error removing cluster group:', e); }
+            if (state.markerGroup && map.hasLayer(state.markerGroup)) {
+                map.removeLayer(state.markerGroup);
+            }
             
-            try {
-                if (state.heatmapLayer && map.hasLayer(state.heatmapLayer)) {
-                    map.removeLayer(state.heatmapLayer);
-                }
-            } catch (e) { console.log('Error removing heatmap:', e); }
+            if (state.heatmapLayer && map.hasLayer(state.heatmapLayer)) {
+                map.removeLayer(state.heatmapLayer);
+            }
             
             if (state.showMarkers) {
-                // Always use clustering for markers - much faster
                 state.markerGroup = L.markerClusterGroup({
                     maxClusterRadius: currentZoom < 14 ? 80 : 50,
                     disableClusteringAtZoom: 17,
-                    chunkInterval: 200
+                    chunkInterval: 200,
+                    iconCreateFunction: function(cluster) {
+                        let totalAccidents = 0;
+                        cluster.getAllChildMarkers().forEach(marker => {
+                            totalAccidents += (marker.accidentCount || 1);
+                        });
+                        
+                        const c = ' marker-cluster-';
+                        if (totalAccidents < 10) {
+                            return new L.DivIcon({
+                                html: '<div><span>' + totalAccidents + '</span></div>',
+                                className: 'marker-cluster' + c + 'small',
+                                iconSize: new L.Point(40, 40)
+                            });
+                        } else if (totalAccidents < 100) {
+                            return new L.DivIcon({
+                                html: '<div><span>' + totalAccidents + '</span></div>',
+                                className: 'marker-cluster' + c + 'medium',
+                                iconSize: new L.Point(40, 40)
+                            });
+                        } else {
+                            return new L.DivIcon({
+                                html: '<div><span>' + totalAccidents + '</span></div>',
+                                className: 'marker-cluster' + c + 'large',
+                                iconSize: new L.Point(40, 40)
+                            });
+                        }
+                    }
                 });
                 
-                filtered.forEach(accident => {
-                    const color = getSeverityColor(accident.KlasifikacijaNesrece);
-                    const popup = `<div style="font-family: Arial; font-size: 12px;">
-                        <b>${accident.TekstCesteNaselja}</b><br>
-                        <small>Date: ${accident.DatumPN} ${accident.UraPN}</small><br>
-                        <small>Type: ${accident.TipNesrece}</small><br>
-                        <small>Severity: ${accident.KlasifikacijaNesrece}</small>
-                    </div>`;
-                    
-                    const marker = L.marker([accident.latitude, accident.longitude], {
-                        icon: L.icon({
-                            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 14" fill="' + color + '"><circle cx="7" cy="7" r="6" stroke="white" stroke-width="1"/></svg>'),
-                            iconSize: [12, 12],
-                            iconAnchor: [6, 6]
-                        })
-                    });
-                    marker.bindPopup(popup);
+                const locationMap = groupAccidentsByLocation(filtered);
+                Object.keys(locationMap).forEach(key => {
+                    const accidents = locationMap[key];
+                    const [lat, lng] = key.split(',').map(Number);
+                    const latlng = L.latLng(lat, lng);
+                    const isMultiple = accidents.length > 1;
+                    const marker = createSmartMarker(latlng, accidents, isMultiple);
                     state.markerGroup.addLayer(marker);
                 });
                 
                 map.addLayer(state.markerGroup);
             }
             
-            if (state.showClusters) {
-                state.clusterGroup = L.markerClusterGroup({
-                    maxClusterRadius: 70,
-                    disableClusteringAtZoom: 16,
-                    chunkInterval: 200
-                });
-                
-                filtered.forEach(accident => {
-                    const color = getSeverityColor(accident.KlasifikacijaNesrece);
-                    const marker = L.marker([accident.latitude, accident.longitude], {
-                        icon: L.icon({
-                            iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="' + color + '"><path d="M10 1C5.04 1 1 5.04 1 10s4.04 9 9 9 9-4.04 9-9-4.04-9-9-9z"/></svg>'),
-                            iconSize: [18, 18],
-                            iconAnchor: [9, 9]
-                        })
-                    });
-                    state.clusterGroup.addLayer(marker);
-                });
-                
-                map.addLayer(state.clusterGroup);
-            }
-            
             if (state.showHeatmap) {
-                // Create heatmap data with weighted severity
                 const heatmapData = filtered.map(accident => {
                     let intensity = 0.2;
                     if (accident.KlasifikacijaNesrece.includes('SMRTNI')) intensity = 1.0;
                     else if (accident.KlasifikacijaNesrece.includes('HUDO TELESNO')) intensity = 0.8;
                     else if (accident.KlasifikacijaNesrece.includes('LAJO TELESNO')) intensity = 0.5;
-                    
                     return [accident.latitude, accident.longitude, intensity];
                 });
-                
-                console.log('Creating heatmap with', heatmapData.length, 'points');
                 
                 state.heatmapLayer = L.heatLayer(heatmapData, {
                     radius: 18,
@@ -929,7 +1000,6 @@
                 });
                 
                 map.addLayer(state.heatmapLayer);
-                console.log('Heatmap layer added to map');
             }
             
             updateStats(filtered);

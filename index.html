@@ -854,8 +854,9 @@
         }
         
         function spreadMarkersInWeb(centerLatlng, accidents, baseColor, locationKey) {
-            const radius = 0.0006;
             const count = accidents.length;
+            // Dynamic radius: scales with number of accidents for better visibility
+            const radius = 0.00002 + (count * 0.00003);
             const angleSlice = (Math.PI * 2) / Math.max(count, 1);
             
             spiderMarkers[locationKey] = [];

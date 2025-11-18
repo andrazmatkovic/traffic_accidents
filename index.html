@@ -496,7 +496,6 @@
         </div>
     </div>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.1/leaflet.markercluster.min.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
@@ -550,24 +549,45 @@
         
         async function loadCompressedJSON() {
             try {
+                // Show loading progress
+                const loadingMsg = document.getElementById('loadingMsg');
+                const progressBar = document.getElementById('loadingProgress');
+                
+                // Fetch the compressed JSON file
                 const response = await fetch('accidents.json.gz');
                 if (!response.ok) throw new Error('Failed to load data file');
                 
                 const arrayBuffer = await response.arrayBuffer();
-                const startTime = performance.now();
+                loadingMsg.textContent = '⏳ Loading ...';
+                progressBar.style.width = '70%';
                 
-                const decompressed = pako.inflate(new Uint8Array(arrayBuffer), { to: 'string' });
-                allData = JSON.parse(decompressed).filter(row => 
-                    !isNaN(row.latitude) && !isNaN(row.longitude)
-                );
+                // Use web worker for decompression and JSON parsing
+                const worker = new Worker('decompress-worker-json.js');
                 
-                const loadTime = (performance.now() - startTime) / 1000;
-                console.log(`Loaded ${allData.length} accidents in ${loadTime.toFixed(2)}s`);
-                initializeApp();
+                worker.onmessage = (event) => {
+                    if (event.data.success) {
+                        allData = event.data.data;
+                        console.log(`✅ Loaded ${event.data.recordCount} accidents in ${event.data.loadTime.toFixed(2)}s`);
+                        progressBar.style.width = '100%';
+                        setTimeout(() => {
+                            initializeApp();
+                        }, 300);
+                    } else {
+                        throw new Error(event.data.error);
+                    }
+                };
+                
+                worker.onerror = (error) => {
+                    console.error('Worker error:', error);
+                    loadingMsg.textContent = `❌ Error: ${error.message}`;
+                };
+                
+                worker.postMessage({ arrayBuffer });
+                
             } catch (error) {
                 console.error('Error loading data:', error);
                 document.getElementById('loadingMsg').textContent = 
-                    `Error loading data: ${error.message}`;
+                    `❌ Error loading data: ${error.message}`;
             }
         }
         
@@ -922,7 +942,6 @@
         
         function spreadMarkersInWeb(centerLatlng, accidents, baseColor, locationKey) {
             const count = accidents.length;
-            // Dynamic radius: scales with number of accidents for better visibility
             const radius = 0.00002 + (count * 0.00003);
             const angleSlice = (Math.PI * 2) / Math.max(count, 1);
             
@@ -1100,3 +1119,4 @@
     </script>
 </body>
 </html>
+

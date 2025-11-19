@@ -20,7 +20,7 @@ OUTPUT_FILE = "accidents.csv"
 # Year selection options:
 # Option 1: Process all years (set both to None)
 START_YEAR = 2015  # e.g., 2010
-END_YEAR = 2024    # e.g., 2020
+END_YEAR = 2025    # e.g., 2020
 
 # Option 2: Process specific years only (leave empty to use START_YEAR/END_YEAR)
 SPECIFIC_YEARS = []  # e.g., [2010, 2011, 2015, 2020]

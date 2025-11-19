@@ -11,7 +11,7 @@ from pathlib import Path
 
 BASE_URL = "https://www.policija.si/baza/"
 START_YEAR = 1995
-END_YEAR = 2024
+END_YEAR = 2025
 OUTPUT_DIR = "data"  # Change this to your desired directory
 
 # Create output directory if it doesn't exist

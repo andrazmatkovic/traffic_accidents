@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slovenian Traffic Accidents - Interactive Map</title>
+    <title>Slovenske prometne nesreče - Interaktivni zemljevid</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -22,6 +22,24 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f0f0f0;
             color: #333;
+        }
+        
+        .source-banner {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 12px;
+            color: #555;
+        }
+        
+        .source-banner a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .source-banner a:hover {
+            text-decoration: underline;
         }
         
         .header {
@@ -44,6 +62,33 @@
             font-size: 12px;
             opacity: 0.9;
             display: none;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .language-toggle {
+            background: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            color: #667eea;
+            transition: all 0.2s;
+        }
+        
+        .language-toggle:hover {
+            background: #f0f0f0;
+        }
+        
+        .language-toggle.active {
+            background: #667eea;
+            color: white;
         }
         
         .menu-toggle {
@@ -433,6 +478,11 @@
             .filter-checkbox-list {
                 max-height: 120px;
             }
+
+            .language-toggle {
+                padding: 5px 8px;
+                font-size: 11px;
+            }
         }
         
         @media (max-width: 480px) {
@@ -469,14 +519,27 @@
                 padding: 8px;
                 font-size: 10px;
             }
+
+            .language-toggle {
+                padding: 4px 6px;
+                font-size: 10px;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="source-banner">
+        📊 <span data-i18n="sourceLabel">Vir podatkov:</span> <a href="https://www.policija.si/o-slovenski-policiji/statistika/prometna-varnost" target="_blank" data-i18n="sourcePolice">Slovenska policija - Prometna varnost</a>
+    </div>
+
     <div class="header">
-        <h1>🚗 Accidents Map</h1>
-        <button class="menu-toggle" id="menuToggle">☰</button>
-        <p>Filter by year, severity, type, weather, and more</p>
+        <h1>🚗 <span data-i18n="title">Zemljevid nesreč</span></h1>
+        <div class="header-controls">
+            <!-- <button class="language-toggle active" id="langSL" data-lang="sl">SL</button> -->
+            <!-- <button class="language-toggle" id="langEN" data-lang="en">EN</button> -->
+            <button class="menu-toggle" id="menuToggle">☰</button>
+        </div>
+        <p data-i18n="subtitle">Filtriraj po letu, resnosti, vrsti, vremenu in še več</p>
     </div>
     
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -484,7 +547,7 @@
     <div class="container">
         <div class="sidebar" id="sidebar">
             <div class="loading" id="loadingMsg">
-                📂 Loading and decompressing data...
+                <span data-i18n="loading">📂 Nalaganje in dekompresija podatkov...</span>
                 <div class="loading-bar">
                     <div class="loading-progress" id="loadingProgress"></div>
                 </div>
@@ -501,6 +564,132 @@
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     
     <script>
+        const categoryTranslations = {
+            sl: {
+                // Severity categories
+                'SMRTNI': 'Smrtni',
+                'HUDO TELESNO': 'Hudo telesno',
+                'HUDO TELESNO POŠKODBO': 'Hudo telesno poškodbo',
+                'Z HUDO TELESNO POŠKODBO': 'Z hudo telesno poškodbo',
+                'LAŽJO TELESNO': 'Lažje telesno',
+                'LAŽJO TELESNO POŠKODBO': 'Lažje telesno poškodbo',
+                'Z LAŽJO TELESNO POŠKODBO': 'Z lažjo telesno poškodbo',
+                'LAJO TELESNO': 'Lažje telesno',
+                'MATERIALNA ŠKODA': 'Materialna škoda',
+                'Z MATERIALNO ŠKODO': 'Z materialno škodo',
+            },
+            en: {
+                // Severity categories
+                'SMRTNI': 'Fatal',
+                'HUDO TELESNO': 'Serious Injury',
+                'HUDO TELESNO POŠKODBO': 'Serious Injury',
+                'Z HUDO TELESNO POŠKODBO': 'Serious Injury',
+                'LAŽJO TELESNO': 'Minor Injury',
+                'LAŽJO TELESNO POŠKODBO': 'Minor Injury',
+                'Z LAŽJO TELESNO POŠKODBO': 'Minor Injury',
+                'LAJO TELESNO': 'Minor Injury',
+                'MATERIALNA ŠKODA': 'Property Damage',
+                'Z MATERIALNO ŠKODO': 'Property Damage',
+            }
+        };
+
+        function translateCategory(text, lang) {
+            if (!text) return text;
+            const translated = categoryTranslations[lang][text];
+            const displayText = translated || text;
+            return displayText.toLowerCase();
+        }
+
+        const translations = {
+            sl: {
+                title: "Zemljevid nesreč",
+                subtitle: "Filtriraj po letu, resnosti, vrsti, vremenu in še več",
+                loading: "📂 Nalaganje in dekompresija podatkov...",
+                loadingDots: "⏳ Nalaganje ...",
+                visualization: "📊 Vizualizacija",
+                markers: "🔴 Oznake",
+                heatmap: "🔥 Toplotni zemljevid",
+                year: "📅 Leto",
+                allYears: "-- Vsa leta --",
+                severity: "⚠️ Resnost",
+                type: "🔀 Vrsta",
+                weather: "🌦️ Vreme",
+                traffic: "🚦 Promet",
+                roadSurface: "🛣️ Vozna površina",
+                locationType: "📍 Vrsta lokacije",
+                total: "Skupaj:",
+                serious: "Hudo:",
+                minor: "Lažje:",
+                property: "Premoženje:",
+                fatal: "Smrtni:",
+                colorLegend: "Legenda barv",
+                seriousInjury: "Resna poškodba",
+                minorInjury: "Manjša poškodba",
+                fatal_legend: "Smrtna",
+                propertyDamage: "Škoda na premoženju",
+                multiAccidents: "Lokacije z več nesrečami",
+                multiAccidentsDesc: "Več nesreč - kliknite za spremembo",
+                heatmapLabel: "Toplotni zemljevid",
+                lowDensity: "Nizka gostota",
+                highDensity: "Visoka gostota",
+                resetAll: "Ponastavi vse",
+                selectAll: "Izberi vse",
+                deselectAll: "Odznači vse",
+                accidentsAtLocation: "nesreč na tej lokaciji",
+                clickToSpread: "Kliknite oznako za razširitev →",
+                date: "Datum:",
+                typeLabel: "Vrsta:",
+                severityLabel: "Resnost:",
+                partOf: "Del",
+                sourceLabel: "Vir podatkov:",
+                sourcePolice: "Slovenska policija - Prometna varnost"
+            },
+            en: {
+                title: "Accidents Map",
+                subtitle: "Filter by year, severity, type, weather, and more",
+                loading: "📂 Loading and decompressing data...",
+                loadingDots: "⏳ Loading ...",
+                visualization: "📊 Visualization",
+                markers: "🔴 Markers",
+                heatmap: "🔥 Heatmap",
+                year: "📅 Year",
+                allYears: "-- All Years --",
+                severity: "⚠️ Severity",
+                type: "🔀 Type",
+                weather: "🌦️ Weather",
+                traffic: "🚦 Traffic",
+                roadSurface: "🛣️ Road Surface",
+                locationType: "📍 Location Type",
+                total: "Total:",
+                serious: "Serious:",
+                minor: "Minor:",
+                property: "Property:",
+                fatal: "Fatal:",
+                colorLegend: "Color Legend",
+                seriousInjury: "Serious Injury",
+                minorInjury: "Minor Injury",
+                fatal_legend: "Fatal",
+                propertyDamage: "Property Damage",
+                multiAccidents: "Multi-Accident Locations",
+                multiAccidentsDesc: "Multiple accidents - click to toggle",
+                heatmapLabel: "Heatmap",
+                lowDensity: "Low Density",
+                highDensity: "High Density",
+                resetAll: "Reset All",
+                selectAll: "Select All",
+                deselectAll: "Deselect All",
+                accidentsAtLocation: "accidents at this location",
+                clickToSpread: "Click marker to spread them out →",
+                date: "Date:",
+                typeLabel: "Type:",
+                severityLabel: "Severity:",
+                partOf: "Part of",
+                sourceLabel: "Data source:",
+                sourcePolice: "Slovenian Police - Traffic Safety"
+            }
+        };
+
+        let currentLanguage = 'sl';
         let allData = [];
         let map = null;
         let expandedWebs = new Set();
@@ -520,6 +709,43 @@
             markerGroup: null,
             heatmapLayer: null
         };
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            
+            document.querySelectorAll('.language-toggle').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            const activeLangBtn = document.querySelector(`[data-lang="${lang}"]`);
+            if (activeLangBtn) activeLangBtn.classList.add('active');
+            
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = translations[lang][key];
+            });
+            
+            if (allData.length > 0) {
+                buildUI(
+                    [...new Set(allData.map(a => a.year))].sort((a, b) => a - b),
+                    [...new Set(allData.map(a => a.KlasifikacijaNesrece))].sort(),
+                    [...new Set(allData.map(a => a.TipNesrece))].sort(),
+                    [...new Set(allData.map(a => a.VremenskeOkoliscine))].filter(x => x).sort(),
+                    [...new Set(allData.map(a => a.StanjePrometa))].filter(x => x).sort(),
+                    [...new Set(allData.map(a => a.StanjeVozisca))].filter(x => x).sort(),
+                    [...new Set(allData.map(a => a.VNaselju))].filter(x => x).sort()
+                );
+            }
+        }
+
+        const savedLanguage = localStorage.getItem('language') || 'sl';
+        setLanguage(savedLanguage);
+
+        // Only attach listeners if buttons exist
+        const langSLBtn = document.getElementById('langSL');
+        const langENBtn = document.getElementById('langEN');
+        if (langSLBtn) langSLBtn.addEventListener('click', () => setLanguage('sl'));
+        if (langENBtn) langENBtn.addEventListener('click', () => setLanguage('en'));
         
         function debouncedUpdateMap() {
             if (updateMapTimeout) clearTimeout(updateMapTimeout);
@@ -549,19 +775,16 @@
         
         async function loadCompressedJSON() {
             try {
-                // Show loading progress
                 const loadingMsg = document.getElementById('loadingMsg');
                 const progressBar = document.getElementById('loadingProgress');
                 
-                // Fetch the compressed JSON file
                 const response = await fetch('accidents.json.gz');
                 if (!response.ok) throw new Error('Failed to load data file');
                 
                 const arrayBuffer = await response.arrayBuffer();
-                loadingMsg.textContent = '⏳ Loading ...';
+                loadingMsg.textContent = translations[currentLanguage].loadingDots;
                 progressBar.style.width = '70%';
                 
-                // Use web worker for decompression and JSON parsing
                 const worker = new Worker('decompress-worker-json.js');
                 
                 worker.onmessage = (event) => {
@@ -621,110 +844,112 @@
         
         function buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes) {
             const sidebar = document.getElementById('sidebar');
+            const t = translations[currentLanguage];
+            
             sidebar.innerHTML = `
                 <div class="filter-section">
-                    <h3>📊 Visualization</h3>
-                    <button class="toggle-btn active" id="markerToggle">🔴 Markers</button>
-                    <button class="toggle-btn" id="heatmapToggle">🔥 Heatmap</button>
+                    <h3>${t.visualization}</h3>
+                    <button class="toggle-btn active" id="markerToggle">${t.markers}</button>
+                    <button class="toggle-btn" id="heatmapToggle">${t.heatmap}</button>
                 </div>
                 
                 <div class="filter-section">
-                    <h3>📅 Year</h3>
+                    <h3>${t.year}</h3>
                     <select class="filter-select" id="yearFilter">
-                        <option value="">-- All Years --</option>
+                        <option value="">${t.allYears}</option>
                     </select>
                 </div>
                 
                 <div class="filter-section">
-                    <h3>⚠️ Severity</h3>
+                    <h3>${t.severity}</h3>
                     <div class="filter-checkbox-list" id="severityList"></div>
                 </div>
                 
                 <div class="filter-section">
-                    <h3>🔀 Type</h3>
+                    <h3>${t.type}</h3>
                     <div class="filter-checkbox-list" id="typeList"></div>
                 </div>
                 
                 <div class="filter-section">
-                    <h3>🌦️ Weather</h3>
+                    <h3>${t.weather}</h3>
                     <div class="filter-checkbox-list" id="weatherList"></div>
                 </div>
                 
                 <div class="filter-section">
-                    <h3>🚦 Traffic</h3>
+                    <h3>${t.traffic}</h3>
                     <div class="filter-checkbox-list" id="trafficList"></div>
                 </div>
                 
                 <div class="filter-section">
-                    <h3>🛣️ Road Surface</h3>
+                    <h3>${t.roadSurface}</h3>
                     <div class="filter-checkbox-list" id="roadList"></div>
                 </div>
                 
                 <div class="filter-section">
-                    <h3>📍 Location Type</h3>
+                    <h3>${t.locationType}</h3>
                     <div class="filter-checkbox-list" id="locationList"></div>
                 </div>
                 
                 <div class="stats-panel">
                     <div class="stat-item">
-                        <span class="stat-label">Total:</span>
+                        <span class="stat-label">${t.total}</span>
                         <span class="stat-value" id="statCount">0</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Serious:</span>
+                        <span class="stat-label">${t.serious}</span>
                         <span class="stat-value" id="statSerious">0</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Minor:</span>
+                        <span class="stat-label">${t.minor}</span>
                         <span class="stat-value" id="statMinor">0</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Property:</span>
+                        <span class="stat-label">${t.property}</span>
                         <span class="stat-value" id="statProperty">0</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Fatal:</span>
+                        <span class="stat-label">${t.fatal}</span>
                         <span class="stat-value" id="statFatal">0</span>
                     </div>
                 </div>
                 
                 <div class="color-legend">
-                    <h4>Color Legend</h4>
+                    <h4>${t.colorLegend}</h4>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #dc3545;"></div>
-                        <span class="legend-text">Serious Injury</span>
+                        <span class="legend-text">${t.seriousInjury}</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #fd7e14;"></div>
-                        <span class="legend-text">Minor Injury</span>
+                        <span class="legend-text">${t.minorInjury}</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #8b0000;"></div>
-                        <span class="legend-text">Fatal</span>
+                        <span class="legend-text">${t.fatal_legend}</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #0066cc;"></div>
-                        <span class="legend-text">Property Damage</span>
+                        <span class="legend-text">${t.propertyDamage}</span>
                     </div>
                     <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
-                    <h4 style="margin-top: 8px;">Multi-Accident Locations</h4>
+                    <h4 style="margin-top: 8px;">${t.multiAccidents}</h4>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #667eea; border: 2px solid white;"></div>
-                        <span class="legend-text">Multiple accidents - click to toggle</span>
+                        <span class="legend-text">${t.multiAccidentsDesc}</span>
                     </div>
                     <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
-                    <h4 style="margin-top: 8px;">Heatmap</h4>
+                    <h4 style="margin-top: 8px;">${t.heatmapLabel}</h4>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #0066cc;"></div>
-                        <span class="legend-text">Low Density</span>
+                        <span class="legend-text">${t.lowDensity}</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background: #ff0000;"></div>
-                        <span class="legend-text">High Density</span>
+                        <span class="legend-text">${t.highDensity}</span>
                     </div>
                 </div>
                 
-                <button class="reset-btn" id="resetBtn">Reset All</button>
+                <button class="reset-btn" id="resetBtn">${t.resetAll}</button>
             `;
             
             const yearFilter = document.getElementById('yearFilter');
@@ -782,18 +1007,18 @@
         function populateCheckboxes(elementId, items, filterType) {
             const container = document.getElementById(elementId);
             container.innerHTML = '';
+            const t = translations[currentLanguage];
             
-            // Add Select All / Deselect All buttons
             const buttonContainer = document.createElement('div');
             buttonContainer.className = 'filter-buttons';
             
             const selectAllBtn = document.createElement('button');
             selectAllBtn.className = 'filter-btn';
-            selectAllBtn.textContent = 'Select All';
+            selectAllBtn.textContent = t.selectAll;
             
             const deselectAllBtn = document.createElement('button');
             deselectAllBtn.className = 'filter-btn deselect';
-            deselectAllBtn.textContent = 'Deselect All';
+            deselectAllBtn.textContent = t.deselectAll;
             
             buttonContainer.appendChild(selectAllBtn);
             buttonContainer.appendChild(deselectAllBtn);
@@ -803,8 +1028,9 @@
                 const div = document.createElement('div');
                 div.className = 'filter-option';
                 const id = filterType + '-' + idx;
+                const displayText = translateCategory(item, currentLanguage);
                 div.innerHTML = `<input type="checkbox" id="${id}" class="${filterType}-filter" checked>
-                                 <label for="${id}">${item}</label>`;
+                                 <label for="${id}">${displayText}</label>`;
                 container.appendChild(div);
             });
             
@@ -847,9 +1073,9 @@
         }
         
         function getSeverityColor(severity) {
-            if (severity.includes('LAJO TELESNO')) return '#dc3545';
-            if (severity.includes('HUDO TELESNO')) return '#fd7e14';
             if (severity.includes('SMRTNI')) return '#8b0000';
+            if (severity.includes('HUDO TELESNO') || severity.includes('HUDO')) return '#dc3545';
+            if (severity.includes('LAŽJ') || severity.includes('LAJO')) return '#fd7e14';
             return '#0066cc';
         }
         
@@ -884,20 +1110,21 @@
         
         function createSmartMarker(latlng, accidents, isMultiple) {
             const color = getSeverityColor(accidents[0].KlasifikacijaNesrece);
+            const t = translations[currentLanguage];
             
             let popupContent = '';
             if (isMultiple) {
                 popupContent = `<div style="font-family: Arial, sans-serif; font-size: 12px;">
-                    <b>${accidents.length} accidents at this location</b><br>
-                    <small style="color: #666;">Click marker to spread them out →</small>
+                    <b>${accidents.length} ${t.accidentsAtLocation}</b><br>
+                    <small style="color: #666;">${t.clickToSpread}</small>
                 </div>`;
             } else {
                 const a = accidents[0];
                 popupContent = `<div style="font-family: Arial, sans-serif; font-size: 12px;">
                     <b>${a.TekstCesteNaselja}</b><br>
-                    <small>Date: ${a.DatumPN} ${a.UraPN}</small><br>
-                    <small>Type: ${a.TipNesrece}</small><br>
-                    <small>Severity: ${a.KlasifikacijaNesrece}</small>
+                    <small>${t.date} ${a.DatumPN} ${a.UraPN}</small><br>
+                    <small>${t.typeLabel} ${a.TipNesrece}</small><br>
+                    <small>${t.severityLabel} ${translateCategory(a.KlasifikacijaNesrece, currentLanguage)}</small>
                 </div>`;
             }
             
@@ -944,6 +1171,7 @@
             const count = accidents.length;
             const radius = 0.00002 + (count * 0.00003);
             const angleSlice = (Math.PI * 2) / Math.max(count, 1);
+            const t = translations[currentLanguage];
             
             spiderMarkers[locationKey] = [];
             
@@ -956,11 +1184,11 @@
                 const color = getSeverityColor(accident.KlasifikacijaNesrece);
                 const popupContent = `<div style="font-family: Arial, sans-serif; font-size: 12px;">
                     <b>${accident.TekstCesteNaselja}</b><br>
-                    <small>Date: ${accident.DatumPN} ${accident.UraPN}</small><br>
-                    <small>Type: ${accident.TipNesrece}</small><br>
-                    <small>Severity: ${accident.KlasifikacijaNesrece}</small><br>
+                    <small>${t.date} ${accident.DatumPN} ${accident.UraPN}</small><br>
+                    <small>${t.typeLabel} ${accident.TipNesrece}</small><br>
+                    <small>${t.severityLabel} ${translateCategory(accident.KlasifikacijaNesrece, currentLanguage)}</small><br>
                     <hr style="margin: 4px 0; border: none; border-top: 1px solid #ddd;">
-                    <small style="color: #999;">Part of ${count} accidents here</small>
+                    <small style="color: #999;">${t.partOf} ${count} ${t.accidentsAtLocation}</small>
                 </div>`;
                 
                 const spiderMarker = L.marker([offsetLat, offsetLng], {
@@ -1102,9 +1330,9 @@
             };
             
             accidents.forEach(a => {
-                if (a.KlasifikacijaNesrece.includes('LAJO TELESNO')) stats.serious++;
-                else if (a.KlasifikacijaNesrece.includes('HUDO TELESNO')) stats.minor++;
-                else if (a.KlasifikacijaNesrece.includes('SMRTNI')) stats.fatal++;
+                if (a.KlasifikacijaNesrece.includes('SMRTNI')) stats.fatal++;
+                else if (a.KlasifikacijaNesrece.includes('HUDO TELESNO') || a.KlasifikacijaNesrece.includes('HUDO')) stats.serious++;
+                else if (a.KlasifikacijaNesrece.includes('LAŽJ') || a.KlasifikacijaNesrece.includes('LAJO')) stats.minor++;
                 else stats.property++;
             });
             
@@ -1119,4 +1347,3 @@
     </script>
 </body>
 </html>
-

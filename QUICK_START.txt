@@ -51,6 +51,9 @@ Common commands:
   # Validate the processed CSV.
   python3 manage_csv.py validate accidents.csv
 
+  # Check that raw source fields were preserved exactly.
+  python3 manage_csv.py audit data accidents.csv
+
   # Print quick statistics.
   python3 manage_csv.py stats accidents.csv
 
@@ -61,6 +64,7 @@ Recommended update flow:
 
   python3 manage_csv.py merge data accidents.csv
   python3 manage_csv.py validate accidents.csv
+  python3 manage_csv.py audit data accidents.csv
   python3 csv_to_json.py accidents.csv accidents.json.gz
 
 Deploy:

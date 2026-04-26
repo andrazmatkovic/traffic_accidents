@@ -23,6 +23,10 @@ participant-level analytical dataset.
 `csv_to_json.py` converts `accidents.csv` into `accidents.json.gz`, which is the
 compressed dataset loaded by the GitHub Pages website.
 
+Run `python3 manage_csv.py audit data accidents.csv` after regenerating data to
+verify that source CSV fields such as `UraPN`, `SifraOdsekaUlice`, and other
+identifier/code fields were not converted or reformatted.
+
 ## Known Limitations
 
 - Rows without valid coordinates are excluded from the map.

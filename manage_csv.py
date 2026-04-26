@@ -6,6 +6,7 @@ Commands:
   convert   Convert one raw pnYYYY.csv file to UTF-8 CSV with WGS84 coordinates.
   merge     Convert and merge raw data/pnYYYY.csv files into accidents.csv.
   validate  Validate a processed CSV file.
+  audit     Compare processed CSV values against raw source CSV values.
   stats     Print quick dataset statistics.
 """
 
@@ -34,6 +35,8 @@ REQUIRED_COLUMNS = (
     "latitude",
     "longitude",
 )
+
+
 def require_processing_deps():
     try:
         import numpy as np
@@ -96,6 +99,31 @@ def read_raw_csv(csv_file):
             continue
 
     raise ValueError(f"Could not read {csv_file} with supported encodings")
+
+
+def read_raw_csv_rows(csv_file):
+    for encoding in ENCODINGS:
+        try:
+            with open(csv_file, "r", encoding=encoding, newline="") as handle:
+                reader = csv.DictReader(handle, delimiter=";")
+                return reader.fieldnames or [], list(reader)
+        except UnicodeDecodeError:
+            continue
+
+    raise ValueError(f"Could not read {csv_file} with supported encodings")
+
+
+def has_valid_source_coordinates(row):
+    x_value = row.get("GeoKoordinataX", "").strip()
+    y_value = row.get("GeoKoordinataY", "").strip()
+
+    if not x_value or not y_value:
+        return False
+
+    try:
+        return float(x_value) != 0 and float(y_value) != 0
+    except ValueError:
+        return False
 
 
 def convert_coordinates_batch(df):
@@ -306,6 +334,71 @@ def validate_file(csv_file):
     return True
 
 
+def audit_raw_preservation(data_folder, processed_file, start_year=None, end_year=None, years=None):
+    if not os.path.exists(data_folder):
+        print(f"Error: Folder '{data_folder}' not found")
+        return False
+
+    raw_by_key = {}
+    source_columns = []
+
+    for csv_file in sorted(glob.glob(os.path.join(data_folder, "pn*.csv"))):
+        year = get_year_from_filename(csv_file)
+        if year is None or not should_process_year(year, start_year, end_year, years):
+            continue
+
+        fieldnames, rows = read_raw_csv_rows(csv_file)
+        for fieldname in fieldnames:
+            if fieldname not in source_columns:
+                source_columns.append(fieldname)
+
+        for row in rows:
+            if not has_valid_source_coordinates(row):
+                continue
+
+            key = (str(year), row.get("ZaporednaStevilkaPN", ""))
+            raw_by_key.setdefault(key, row)
+
+    checked_rows = 0
+    errors = []
+
+    with open(processed_file, "r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        processed_columns = set(reader.fieldnames or [])
+
+        for row_number, processed_row in enumerate(reader, start=2):
+            key = (processed_row.get("year", ""), processed_row.get("ZaporednaStevilkaPN", ""))
+            raw_row = raw_by_key.get(key)
+
+            if raw_row is None:
+                errors.append(f"Row {row_number}: no matching raw row for year/id {key}")
+                continue
+
+            checked_rows += 1
+            for column in source_columns:
+                if column not in processed_columns:
+                    continue
+                if raw_row.get(column, "") != processed_row.get(column, ""):
+                    errors.append(
+                        f"Row {row_number} {key} column {column}: "
+                        f"raw={raw_row.get(column, '')!r}, processed={processed_row.get(column, '')!r}"
+                    )
+
+    print(f"Rows checked: {checked_rows}")
+    print(f"Source fields checked per row: {len([c for c in source_columns if c in processed_columns])}")
+
+    if errors:
+        print("\nSource preservation errors:")
+        for error in errors[:25]:
+            print(f"  - {error}")
+        if len(errors) > 25:
+            print(f"  ... and {len(errors) - 25} more")
+        return False
+
+    print("\nRaw source fields preserved")
+    return True
+
+
 def print_stats(csv_file):
     rows = 0
     years = {}
@@ -353,6 +446,14 @@ def build_parser():
     validate_parser = subparsers.add_parser("validate", help="Validate a processed CSV file")
     validate_parser.add_argument("csv_file")
 
+    audit_parser = subparsers.add_parser("audit", help="Compare processed CSV values against raw source CSV values")
+    audit_parser.add_argument("data_folder", nargs="?", default=DEFAULT_DATA_FOLDER)
+    audit_parser.add_argument("processed_file", nargs="?", default=DEFAULT_OUTPUT_FILE)
+    audit_parser.add_argument("--start-year", type=int, default=DEFAULT_START_YEAR)
+    audit_parser.add_argument("--end-year", type=int, default=DEFAULT_END_YEAR)
+    audit_parser.add_argument("--years", nargs="+", help="Specific years or ranges, e.g. 2024 2025 or 2020-2025")
+    audit_parser.add_argument("--all-years", action="store_true", help="Ignore default year range")
+
     stats_parser = subparsers.add_parser("stats", help="Print quick dataset statistics")
     stats_parser.add_argument("csv_file")
 
@@ -382,6 +483,19 @@ def main(argv=None):
 
     if args.command == "validate":
         return 0 if validate_file(args.csv_file) else 1
+
+    if args.command == "audit":
+        years = parse_years(args.years)
+        start_year = None if args.all_years or years else args.start_year
+        end_year = None if args.all_years or years else args.end_year
+        ok = audit_raw_preservation(
+            args.data_folder,
+            args.processed_file,
+            start_year=start_year,
+            end_year=end_year,
+            years=years,
+        )
+        return 0 if ok else 1
 
     if args.command == "stats":
         print_stats(args.csv_file)

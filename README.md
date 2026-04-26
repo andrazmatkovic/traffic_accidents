@@ -53,6 +53,12 @@ Validate the processed CSV:
 python3 manage_csv.py validate accidents.csv
 ```
 
+Audit that raw source fields were preserved exactly:
+
+```bash
+python3 manage_csv.py audit data accidents.csv
+```
+
 Print quick dataset statistics:
 
 ```bash
@@ -64,6 +70,7 @@ Recommended update flow:
 ```bash
 python3 manage_csv.py merge data accidents.csv
 python3 manage_csv.py validate accidents.csv
+python3 manage_csv.py audit data accidents.csv
 python3 csv_to_json.py accidents.csv accidents.json.gz
 ```
 
@@ -93,6 +100,8 @@ python3 manage_csv.py merge data accidents.csv --years 2020-2025
 Raw Police files use semicolon-separated CSV and D96/TM coordinates. The processing script converts coordinates to WGS84 latitude/longitude for Leaflet.
 
 The CSV reader intentionally preserves raw columns as text. This matters for fields such as `UraPN`, `SifraOdsekaUlice`, and `VozniskiStazVMesecih`, where values like `08.10`, `00055`, or `06` must not be converted to `8.1`, `55`, or `6`.
+
+Use `python3 manage_csv.py audit data accidents.csv` after regenerating data to catch accidental type conversion or formatting loss in source columns.
 
 The raw Police CSV files are participant-level records. The processed map dataset keeps one row per accident by de-duplicating `year + ZaporednaStevilkaPN`, so the map is useful for accident locations rather than participant-level analysis.
 

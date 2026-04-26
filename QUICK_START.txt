@@ -6,17 +6,28 @@ Website files:
 1. index.html
    Open this through GitHub Pages or a local web server.
 
-2. accidents.json.gz
+2. styles.css, src/i18n.js, src/app.js
+   Static app assets loaded by index.html.
+
+3. accidents.json.gz
    Compressed dataset loaded by the browser.
 
-3. decompress-worker-json.js
+4. decompress-worker-json.js
    Web Worker that decompresses the dataset.
 
-4. accidents.csv
+5. accidents.csv
    Processed CSV used to regenerate accidents.json.gz.
 
-5. data/pnYYYY.csv
+6. data/pnYYYY.csv
    Raw Slovenian Police CSV files.
+
+Run locally:
+
+  python3 -m http.server 8000
+
+Then open:
+
+  http://localhost:8000
 
 Setup:
 
@@ -46,6 +57,16 @@ Common commands:
   # Regenerate the compressed JSON used by the website.
   python3 csv_to_json.py accidents.csv accidents.json.gz
 
+Recommended update flow:
+
+  python3 manage_csv.py merge data accidents.csv
+  python3 manage_csv.py validate accidents.csv
+  python3 csv_to_json.py accidents.csv accidents.json.gz
+
+Deploy:
+
+  git push origin main
+
 CSV notes:
 
   The processing script reads raw CSV columns as text so values such as
@@ -53,3 +74,6 @@ CSV notes:
 
   The script converts D96/TM coordinates from GeoKoordinataX and
   GeoKoordinataY to WGS84 latitude and longitude.
+
+  The map dataset is one row per accident, not one row per participant.
+  See DATA_NOTES.md for source, limitations, privacy, and attribution notes.

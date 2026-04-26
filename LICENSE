@@ -1,7 +1,25 @@
-This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License.
+SPDX-License-Identifier: CC-BY-NC-4.0
 
-### What this means:
-- ✅ Free for non-commercial use (personal, educational, research)
-- ✅ Attribution required (credit and link back)
-- ✅ You can modify and distribute
-- ❌ Commercial use is prohibited
+This project is licensed under the Creative Commons Attribution-NonCommercial
+4.0 International License.
+
+Summary:
+
+- Free for non-commercial use.
+- Attribution is required.
+- Modified versions may be shared.
+- Commercial use is not permitted.
+
+License text:
+
+https://creativecommons.org/licenses/by-nc/4.0/legalcode
+
+Human-readable summary:
+
+https://creativecommons.org/licenses/by-nc/4.0/
+
+Data attribution:
+
+Traffic accident data is derived from public Slovenian Police traffic safety
+statistics. This project is not affiliated with or endorsed by the Slovenian
+Police. OpenStreetMap contributors provide the map tiles used by the website.

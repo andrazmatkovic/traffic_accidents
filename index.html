@@ -995,6 +995,12 @@
                 document.querySelectorAll('.filter-option input').forEach(cb => cb.checked = true);
                 document.getElementById('yearFilter').value = '';
                 state.selectedYear = years;
+                state.selectedSeverities = severities;
+                state.selectedTypes = types;
+                state.selectedWeather = weather;
+                state.selectedTraffic = traffic;
+                state.selectedRoadSurface = roadSurface;
+                state.selectedLocationTypes = locationTypes;
                 state.showMarkers = true;
                 state.showHeatmap = false;
                 document.getElementById('markerToggle').classList.add('active');
@@ -1077,6 +1083,13 @@
             if (severity.includes('HUDO TELESNO') || severity.includes('HUDO')) return '#dc3545';
             if (severity.includes('LAŽJ') || severity.includes('LAJO')) return '#fd7e14';
             return '#0066cc';
+        }
+
+        function getSeverityIntensity(severity) {
+            if (severity.includes('SMRTNI')) return 1.0;
+            if (severity.includes('HUDO TELESNO') || severity.includes('HUDO')) return 0.8;
+            if (severity.includes('LAŽJ') || severity.includes('LAJO')) return 0.5;
+            return 0.2;
         }
         
         function getFilteredAccidents() {
@@ -1292,11 +1305,11 @@
             
             if (state.showHeatmap) {
                 const heatmapData = filtered.map(accident => {
-                    let intensity = 0.2;
-                    if (accident.KlasifikacijaNesrece.includes('SMRTNI')) intensity = 1.0;
-                    else if (accident.KlasifikacijaNesrece.includes('HUDO TELESNO')) intensity = 0.8;
-                    else if (accident.KlasifikacijaNesrece.includes('LAJO TELESNO')) intensity = 0.5;
-                    return [accident.latitude, accident.longitude, intensity];
+                    return [
+                        accident.latitude,
+                        accident.longitude,
+                        getSeverityIntensity(accident.KlasifikacijaNesrece)
+                    ];
                 });
                 
                 state.heatmapLayer = L.heatLayer(heatmapData, {

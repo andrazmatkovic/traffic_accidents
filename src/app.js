@@ -1,5 +1,6 @@
 let currentLanguage = 'sl';
 let allData = [];
+let dataIndex = null;
 let map = null;
 let expandedWebs = new Set();
 let spiderMarkers = {};
@@ -34,16 +35,8 @@ function setLanguage(lang) {
         el.textContent = translations[lang][key];
     });
     
-    if (allData.length > 0) {
-        buildUI(
-            [...new Set(allData.map(a => a.year))].sort((a, b) => a - b),
-            [...new Set(allData.map(a => a.KlasifikacijaNesrece))].sort(),
-            [...new Set(allData.map(a => a.TipNesrece))].sort(),
-            [...new Set(allData.map(a => a.VremenskeOkoliscine))].filter(x => x).sort(),
-            [...new Set(allData.map(a => a.StanjePrometa))].filter(x => x).sort(),
-            [...new Set(allData.map(a => a.StanjeVozisca))].filter(x => x).sort(),
-            [...new Set(allData.map(a => a.VNaselju))].filter(x => x).sort()
-        );
+    if (dataIndex) {
+        buildUI(...getFilterOptions());
     }
 }
 
@@ -82,6 +75,56 @@ function closeSidebarOnMobile() {
     }
 }
 
+function buildDataIndex(data) {
+    const byYear = new Map();
+    const years = new Set();
+    const severities = new Set();
+    const types = new Set();
+    const weather = new Set();
+    const traffic = new Set();
+    const roadSurface = new Set();
+    const locationTypes = new Set();
+
+    data.forEach(accident => {
+        years.add(accident.year);
+        severities.add(accident.KlasifikacijaNesrece);
+        types.add(accident.TipNesrece);
+
+        if (accident.VremenskeOkoliscine) weather.add(accident.VremenskeOkoliscine);
+        if (accident.StanjePrometa) traffic.add(accident.StanjePrometa);
+        if (accident.StanjeVozisca) roadSurface.add(accident.StanjeVozisca);
+        if (accident.VNaselju) locationTypes.add(accident.VNaselju);
+
+        if (!byYear.has(accident.year)) {
+            byYear.set(accident.year, []);
+        }
+        byYear.get(accident.year).push(accident);
+    });
+
+    return {
+        byYear,
+        years: [...years].sort((a, b) => a - b),
+        severities: [...severities].sort(),
+        types: [...types].sort(),
+        weather: [...weather].sort(),
+        traffic: [...traffic].sort(),
+        roadSurface: [...roadSurface].sort(),
+        locationTypes: [...locationTypes].sort()
+    };
+}
+
+function getFilterOptions() {
+    return [
+        dataIndex.years,
+        dataIndex.severities,
+        dataIndex.types,
+        dataIndex.weather,
+        dataIndex.traffic,
+        dataIndex.roadSurface,
+        dataIndex.locationTypes
+    ];
+}
+
 async function loadCompressedJSON() {
     try {
         const loadingMsg = document.getElementById('loadingMsg');
@@ -99,6 +142,7 @@ async function loadCompressedJSON() {
         worker.onmessage = (event) => {
             if (event.data.success) {
                 allData = event.data.data;
+                dataIndex = buildDataIndex(allData);
                 console.log(`✅ Loaded ${event.data.recordCount} accidents in ${event.data.loadTime.toFixed(2)}s`);
                 progressBar.style.width = '100%';
                 setTimeout(() => {
@@ -131,13 +175,7 @@ function initializeApp() {
         maxZoom: 19
     }).addTo(map);
     
-    const years = [...new Set(allData.map(a => a.year))].sort((a, b) => a - b);
-    const severities = [...new Set(allData.map(a => a.KlasifikacijaNesrece))].sort();
-    const types = [...new Set(allData.map(a => a.TipNesrece))].sort();
-    const weather = [...new Set(allData.map(a => a.VremenskeOkoliscine))].filter(x => x).sort();
-    const traffic = [...new Set(allData.map(a => a.StanjePrometa))].filter(x => x).sort();
-    const roadSurface = [...new Set(allData.map(a => a.StanjeVozisca))].filter(x => x).sort();
-    const locationTypes = [...new Set(allData.map(a => a.VNaselju))].filter(x => x).sort();
+    const [years, severities, types, weather, traffic, roadSurface, locationTypes] = getFilterOptions();
     
     state.selectedYear = years;
     state.selectedSeverities = severities;
@@ -402,30 +440,36 @@ function getSeverityIntensity(severity) {
 }
 
 function getFilteredAccidents() {
-    return allData.filter(accident => {
-        const yearFilter = document.getElementById('yearFilter');
-        const selectedYear = yearFilter.value ? parseInt(yearFilter.value) : null;
-        
-        const passYear = !selectedYear || accident.year === selectedYear;
-        const passSeverity = state.selectedSeverities.includes(accident.KlasifikacijaNesrece);
-        const passType = state.selectedTypes.includes(accident.TipNesrece);
-        const passWeather = state.selectedWeather.includes(accident.VremenskeOkoliscine) || !accident.VremenskeOkoliscine;
-        const passTraffic = state.selectedTraffic.includes(accident.StanjePrometa) || !accident.StanjePrometa;
-        const passRoad = state.selectedRoadSurface.includes(accident.StanjeVozisca) || !accident.StanjeVozisca;
-        const passLocation = state.selectedLocationTypes.includes(accident.VNaselju) || !accident.VNaselju;
-        
-        return passYear && passSeverity && passType && passWeather && passTraffic && passRoad && passLocation;
+    const yearFilter = document.getElementById('yearFilter');
+    const selectedYear = yearFilter.value ? parseInt(yearFilter.value) : null;
+    const source = selectedYear && dataIndex ? (dataIndex.byYear.get(selectedYear) || []) : allData;
+    const selectedSeverities = new Set(state.selectedSeverities);
+    const selectedTypes = new Set(state.selectedTypes);
+    const selectedWeather = new Set(state.selectedWeather);
+    const selectedTraffic = new Set(state.selectedTraffic);
+    const selectedRoadSurface = new Set(state.selectedRoadSurface);
+    const selectedLocationTypes = new Set(state.selectedLocationTypes);
+
+    return source.filter(accident => {
+        const passSeverity = selectedSeverities.has(accident.KlasifikacijaNesrece);
+        const passType = selectedTypes.has(accident.TipNesrece);
+        const passWeather = selectedWeather.has(accident.VremenskeOkoliscine) || !accident.VremenskeOkoliscine;
+        const passTraffic = selectedTraffic.has(accident.StanjePrometa) || !accident.StanjePrometa;
+        const passRoad = selectedRoadSurface.has(accident.StanjeVozisca) || !accident.StanjeVozisca;
+        const passLocation = selectedLocationTypes.has(accident.VNaselju) || !accident.VNaselju;
+
+        return passSeverity && passType && passWeather && passTraffic && passRoad && passLocation;
     });
 }
 
 function groupAccidentsByLocation(accidents) {
-    const locationMap = {};
+    const locationMap = new Map();
     accidents.forEach(accident => {
         const key = `${accident.latitude},${accident.longitude}`;
-        if (!locationMap[key]) {
-            locationMap[key] = [];
+        if (!locationMap.has(key)) {
+            locationMap.set(key, []);
         }
-        locationMap[key].push(accident);
+        locationMap.get(key).push(accident);
     });
     return locationMap;
 }
@@ -569,6 +613,7 @@ function updateMap() {
         state.markerGroup = L.markerClusterGroup({
             maxClusterRadius: currentZoom < 14 ? 80 : 50,
             disableClusteringAtZoom: 17,
+            chunkedLoading: true,
             chunkInterval: 200,
             iconCreateFunction: function(cluster) {
                 let totalAccidents = 0;
@@ -600,14 +645,15 @@ function updateMap() {
         });
         
         const locationMap = groupAccidentsByLocation(filtered);
-        Object.keys(locationMap).forEach(key => {
-            const accidents = locationMap[key];
+        const markers = [];
+        locationMap.forEach((accidents, key) => {
             const [lat, lng] = key.split(',').map(Number);
             const latlng = L.latLng(lat, lng);
             const isMultiple = accidents.length > 1;
             const marker = createSmartMarker(latlng, accidents, isMultiple);
-            state.markerGroup.addLayer(marker);
+            markers.push(marker);
         });
+        state.markerGroup.addLayers(markers);
         
         map.addLayer(state.markerGroup);
     }

@@ -1,92 +1,55 @@
-╔════════════════════════════════════════════════════════════════════════════╗
-║                 INTERACTIVE ACCIDENT MAP - QUICK START GUIDE               ║
-║                                                                            ║
-║  Your new CSV-based interactive map is ready! 🎉                          ║
-╚════════════════════════════════════════════════════════════════════════════╝
+TRAFFIC ACCIDENT MAP - QUICK START
+==================================
 
-📂 FILES CREATED:
-================
+Website files:
 
-1. 🗺️ index.html (24 KB)
-   → OPEN THIS IN YOUR BROWSER to see the interactive map
-   → Works offline once loaded
-   → Loads data from JSON files automatically
+1. index.html
+   Open this through GitHub Pages or a local web server.
 
-2. 📊 accidents.csv (550 KB)
-   → Your accident data (3,666 unique locations)
-   → 14 columns with all relevant information
-   → UTF-8 encoded, ready to expand
+2. accidents.json.gz
+   Compressed dataset loaded by the browser.
 
-3. 📖 README.md
-   → Complete documentation
-   → Instructions for adding new years of data
-   → Troubleshooting guide
-   → How to customize the map
+3. decompress-worker-json.js
+   Web Worker that decompresses the dataset.
 
-4. 🛠️  manage_csv.py
-   → Python utility for managing CSV files
-   → Convert coordinates from D96/TM to WGS84
-   → Merge multiple CSV files
-   → Validate CSV structure
-   → Get statistics
+4. accidents.csv
+   Processed CSV used to regenerate accidents.json.gz.
 
+5. data/pnYYYY.csv
+   Raw Slovenian Police CSV files.
 
-✨ KEY FEATURES:
-================
+Setup:
 
-📅 Year Filter
-   → View data from specific years
-   → Automatically detects all years in CSV
-   → Add new years by expanding CSV file
+  python3 -m pip install -r requirements.txt
 
-🎨 Visualization Modes
-   → Markers: See individual accidents
-   → Clusters: Group nearby accidents
+Common commands:
 
-📈 Live Statistics
-   → Real-time counts as you filter
-   → Breakdown by severity level
+  # Merge raw data files into accidents.csv.
+  python3 manage_csv.py merge data accidents.csv
 
-🔍 Interactive Map
-   → Click markers for details
-   → Zoom in/out
-   → Pan around
-   → Offline after loading
+  # Merge all available raw data years.
+  python3 manage_csv.py merge data accidents.csv --all-years
 
+  # Merge specific years or year ranges.
+  python3 manage_csv.py merge data accidents.csv --years 2024 2025
+  python3 manage_csv.py merge data accidents.csv --years 2020-2025
 
-📚 CSV STRUCTURE:
-=================
+  # Convert one raw CSV file to a processed UTF-8 CSV with WGS84 coordinates.
+  python3 manage_csv.py convert data/pn2025.csv
 
-Your CSV file has these columns:
-  1. ZaporednaStevilkaPN    - Unique accident ID
-  2. year                   - Year (e.g., 2024)
-  3. DatumPN                - Date (DD.MM.YYYY format)
-  4. UraPN                  - Time
-  5. TekstCesteNaselja      - Street name
-  6. TipNesrece             - Accident type
-  7. KlasifikacijaNesrece   - Severity level
-  8. VremenskeOkoliscine    - Weather conditions
-  9. StanjePrometa          - Traffic conditions
-  10. StanjeVozisca         - Road surface condition
-  11. VNaselju              - In settlement? (DA/NE)
-  12. Lokacija              - Location type
-  13. latitude              - WGS84 latitude
-  14. longitude             - WGS84 longitude
-
-
-🎯 ADDING NEW DATA:
-===================
-
-Use Python script
-  
-  # Convert raw data to WGS84 coordinates:
-  python3 manage_csv.py convert pn2025.csv
-  
-  # Merge multiple files:
-  python3 manage_csv.py merge /folder/with/csvs combined.csv
-  
-  # Validate your CSV:
+  # Validate the processed CSV.
   python3 manage_csv.py validate accidents.csv
-  
-  # Get statistics:
+
+  # Print quick statistics.
   python3 manage_csv.py stats accidents.csv
+
+  # Regenerate the compressed JSON used by the website.
+  python3 csv_to_json.py accidents.csv accidents.json.gz
+
+CSV notes:
+
+  The processing script reads raw CSV columns as text so values such as
+  08.10, 00055, and 06 keep their original formatting.
+
+  The script converts D96/TM coordinates from GeoKoordinataX and
+  GeoKoordinataY to WGS84 latitude and longitude.

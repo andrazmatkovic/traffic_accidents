@@ -20,8 +20,10 @@ one row per accident by de-duplicating `year + ZaporednaStevilkaPN`. This makes
 the website suitable for accident location visualization, but it is not a full
 participant-level analytical dataset.
 
-`csv_to_json.py` converts `accidents.csv` into `accidents.json.gz`, which is the
-compressed dataset loaded by the GitHub Pages website.
+`csv_to_json.py --chunks accidents.csv data` converts `accidents.csv` into a
+small `data/manifest.json` file and per-year `data/accidents-YYYY.json.gz`
+chunks. The GitHub Pages website loads the newest year first and downloads the
+remaining years in the background.
 
 Run `python3 manage_csv.py audit data accidents.csv` after regenerating data to
 verify that source CSV fields such as `UraPN`, `SifraOdsekaUlice`, and other

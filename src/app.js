@@ -1,6 +1,10 @@
 let currentLanguage = 'sl';
 let allData = [];
-let dataIndex = null;
+let dataIndex = buildEmptyDataIndex();
+let dataManifest = null;
+let loadedYears = new Set();
+let loadingYears = new Set();
+let yearLoadPromises = new Map();
 let map = null;
 let expandedWebs = new Set();
 let spiderMarkers = {};
@@ -35,8 +39,8 @@ function setLanguage(lang) {
         el.textContent = translations[lang][key];
     });
     
-    if (dataIndex) {
-        buildUI(...getFilterOptions());
+    if (dataManifest) {
+        buildUI(...getFilterOptions(), getActiveYear());
     }
 }
 
@@ -75,42 +79,38 @@ function closeSidebarOnMobile() {
     }
 }
 
-function buildDataIndex(data) {
-    const byYear = new Map();
-    const years = new Set();
-    const severities = new Set();
-    const types = new Set();
-    const weather = new Set();
-    const traffic = new Set();
-    const roadSurface = new Set();
-    const locationTypes = new Set();
-
-    data.forEach(accident => {
-        years.add(accident.year);
-        severities.add(accident.KlasifikacijaNesrece);
-        types.add(accident.TipNesrece);
-
-        if (accident.VremenskeOkoliscine) weather.add(accident.VremenskeOkoliscine);
-        if (accident.StanjePrometa) traffic.add(accident.StanjePrometa);
-        if (accident.StanjeVozisca) roadSurface.add(accident.StanjeVozisca);
-        if (accident.VNaselju) locationTypes.add(accident.VNaselju);
-
-        if (!byYear.has(accident.year)) {
-            byYear.set(accident.year, []);
-        }
-        byYear.get(accident.year).push(accident);
-    });
-
+function buildEmptyDataIndex() {
     return {
-        byYear,
-        years: [...years].sort((a, b) => a - b),
-        severities: [...severities].sort(),
-        types: [...types].sort(),
-        weather: [...weather].sort(),
-        traffic: [...traffic].sort(),
-        roadSurface: [...roadSurface].sort(),
-        locationTypes: [...locationTypes].sort()
+        byYear: new Map(),
+        years: [],
+        severities: [],
+        types: [],
+        weather: [],
+        traffic: [],
+        roadSurface: [],
+        locationTypes: []
     };
+}
+
+function buildFilterOptionsFromManifest(manifest) {
+    return {
+        years: manifest.years || [],
+        severities: manifest.filters?.severities || [],
+        types: manifest.filters?.types || [],
+        weather: manifest.filters?.weather || [],
+        traffic: manifest.filters?.traffic || [],
+        roadSurface: manifest.filters?.roadSurface || [],
+        locationTypes: manifest.filters?.locationTypes || []
+    };
+}
+
+function appendYearData(year, data) {
+    const numericYear = Number(year);
+    const existing = dataIndex.byYear.get(numericYear) || [];
+    const nextYearData = existing.concat(data);
+    dataIndex.byYear.set(numericYear, nextYearData);
+    allData = dataManifest.years.flatMap(year => dataIndex.byYear.get(year) || []);
+    loadedYears.add(numericYear);
 }
 
 function getFilterOptions() {
@@ -125,49 +125,120 @@ function getFilterOptions() {
     ];
 }
 
-async function loadCompressedJSON() {
-    try {
-        const loadingMsg = document.getElementById('loadingMsg');
-        const progressBar = document.getElementById('loadingProgress');
-        
-        const response = await fetch('accidents.json.gz');
-        if (!response.ok) throw new Error('Failed to load data file');
-        
-        const arrayBuffer = await response.arrayBuffer();
-        loadingMsg.textContent = translations[currentLanguage].loadingDots;
-        progressBar.style.width = '70%';
-        
-        const worker = new Worker('decompress-worker-json.js');
-        
-        worker.onmessage = (event) => {
-            if (event.data.success) {
-                allData = event.data.data;
-                dataIndex = buildDataIndex(allData);
-                console.log(`✅ Loaded ${event.data.recordCount} accidents in ${event.data.loadTime.toFixed(2)}s`);
-                progressBar.style.width = '100%';
-                setTimeout(() => {
-                    initializeApp();
-                }, 300);
-            } else {
-                throw new Error(event.data.error);
+function getChunkForYear(year) {
+    return dataManifest.chunks.find(chunk => chunk.year === year);
+}
+
+function getActiveYear() {
+    const yearFilter = document.getElementById('yearFilter');
+    if (!yearFilter) return dataManifest?.defaultYear || null;
+    return yearFilter.value ? parseInt(yearFilter.value) : null;
+}
+
+function loadYearChunk(year) {
+    if (loadedYears.has(year)) {
+        return Promise.resolve();
+    }
+
+    if (loadingYears.has(year)) {
+        return yearLoadPromises.get(year) || Promise.resolve();
+    }
+
+    const chunk = getChunkForYear(year);
+    if (!chunk) {
+        return Promise.reject(new Error(`Missing data chunk for year ${year}`));
+    }
+
+    loadingYears.add(year);
+
+    const loadPromise = fetch(`data/${chunk.file}`)
+        .then(response => {
+            if (!response.ok) throw new Error(`Failed to load data for ${year}`);
+            return response.arrayBuffer();
+        })
+        .then(arrayBuffer => new Promise((resolve, reject) => {
+            const worker = new Worker('decompress-worker-json.js');
+
+            worker.onmessage = (event) => {
+                worker.terminate();
+                loadingYears.delete(year);
+                yearLoadPromises.delete(year);
+
+                if (event.data.success) {
+                    appendYearData(year, event.data.data);
+                    console.log(`✅ Loaded ${event.data.recordCount} accidents for ${year} in ${event.data.loadTime.toFixed(2)}s`);
+                    resolve();
+                } else {
+                    reject(new Error(event.data.error));
+                }
+            };
+
+            worker.onerror = (error) => {
+                worker.terminate();
+                loadingYears.delete(year);
+                yearLoadPromises.delete(year);
+                reject(error);
+            };
+
+            worker.postMessage({ arrayBuffer, year });
+        }))
+        .catch(error => {
+            loadingYears.delete(year);
+            yearLoadPromises.delete(year);
+            throw error;
+        });
+
+    yearLoadPromises.set(year, loadPromise);
+    return loadPromise;
+}
+
+async function hydrateRemainingYears(defaultYear, progressBar) {
+    const remainingYears = dataManifest.years.filter(year => year !== defaultYear);
+    let loadedCount = 1;
+    const totalYears = dataManifest.years.length;
+
+    for (const year of remainingYears) {
+        try {
+            await loadYearChunk(year);
+            loadedCount += 1;
+            progressBar.style.width = `${Math.round((loadedCount / totalYears) * 100)}%`;
+            if (getActiveYear() === null) {
+                updateMap();
             }
-        };
-        
-        worker.onerror = (error) => {
-            console.error('Worker error:', error);
-            loadingMsg.textContent = `❌ Error: ${error.message}`;
-        };
-        
-        worker.postMessage({ arrayBuffer });
-        
-    } catch (error) {
-        console.error('Error loading data:', error);
-        document.getElementById('loadingMsg').textContent = 
-            `❌ Error loading data: ${error.message}`;
+        } catch (error) {
+            console.error(`Error loading background data for ${year}:`, error);
+        }
     }
 }
 
-function initializeApp() {
+async function loadAccidentData() {
+    const loadingMsg = document.getElementById('loadingMsg');
+    const progressBar = document.getElementById('loadingProgress');
+
+    try {
+        const manifestResponse = await fetch('data/manifest.json');
+        if (!manifestResponse.ok) throw new Error('Failed to load data manifest');
+        dataManifest = await manifestResponse.json();
+        Object.assign(dataIndex, buildFilterOptionsFromManifest(dataManifest));
+
+        const defaultYear = dataManifest.defaultYear;
+        loadingMsg.textContent = translations[currentLanguage].loadingDots;
+        progressBar.style.width = '30%';
+
+        await loadYearChunk(defaultYear);
+        progressBar.style.width = '100%';
+
+        setTimeout(() => {
+            initializeApp(defaultYear);
+            hydrateRemainingYears(defaultYear, progressBar);
+        }, 150);
+    } catch (error) {
+        console.error('Error loading data:', error);
+        loadingMsg.textContent = `❌ Error loading data: ${error.message}`;
+    }
+}
+
+function initializeApp(defaultYear = null) {
     map = L.map('map').setView([46.0569, 14.5058], 12);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -185,11 +256,11 @@ function initializeApp() {
     state.selectedRoadSurface = roadSurface;
     state.selectedLocationTypes = locationTypes;
     
-    buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes);
+    buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes, defaultYear);
     updateMap();
 }
 
-function buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes) {
+function buildUI(years, severities, types, weather, traffic, roadSurface, locationTypes, selectedYear = null) {
     const sidebar = document.getElementById('sidebar');
     const t = translations[currentLanguage];
     
@@ -306,8 +377,18 @@ function buildUI(years, severities, types, weather, traffic, roadSurface, locati
         option.textContent = year;
         yearFilter.appendChild(option);
     });
+    if (selectedYear) {
+        yearFilter.value = selectedYear;
+    }
     yearFilter.addEventListener('change', () => {
-        debouncedUpdateMap();
+        const selectedYear = yearFilter.value ? parseInt(yearFilter.value) : null;
+        if (selectedYear && !loadedYears.has(selectedYear)) {
+            loadYearChunk(selectedYear).then(updateMap).catch(error => {
+                console.error('Error loading selected year:', error);
+            });
+        } else {
+            debouncedUpdateMap();
+        }
         closeSidebarOnMobile();
     });
     
@@ -442,7 +523,7 @@ function getSeverityIntensity(severity) {
 function getFilteredAccidents() {
     const yearFilter = document.getElementById('yearFilter');
     const selectedYear = yearFilter.value ? parseInt(yearFilter.value) : null;
-    const source = selectedYear && dataIndex ? (dataIndex.byYear.get(selectedYear) || []) : allData;
+    const source = selectedYear ? (dataIndex.byYear.get(selectedYear) || []) : allData;
     const selectedSeverities = new Set(state.selectedSeverities);
     const selectedTypes = new Set(state.selectedTypes);
     const selectedWeather = new Set(state.selectedWeather);
@@ -711,4 +792,4 @@ function updateStats(accidents) {
     document.getElementById('statFatal').textContent = stats.fatal;
 }
 
-loadCompressedJSON();
+loadAccidentData();

@@ -1,0 +1,157 @@
+{
+  "defaultYear": 2025,
+  "years": [
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "fields": [
+    "latitude",
+    "longitude",
+    "year",
+    "KlasifikacijaNesrece",
+    "TipNesrece",
+    "VremenskeOkoliscine",
+    "StanjePrometa",
+    "StanjeVozisca",
+    "VNaselju",
+    "TekstCesteNaselja",
+    "DatumPN",
+    "UraPN"
+  ],
+  "filters": {
+    "severities": [
+      "S HUDO TELESNO POŠKODBO",
+      "S SMRTNIM IZIDOM",
+      "Z LAŽJO TELESNO POŠKODBO",
+      "Z MATERIALNO ŠKODO"
+    ],
+    "types": [
+      "BOČNO TRČENJE",
+      "NALETNO TRČENJE",
+      "OPLAŽENJE",
+      "OSTALO",
+      "POVOŽENJE PEŠCA",
+      "POVOŽENJE ŽIVALI",
+      "PREVRNITEV VOZILA",
+      "TRČENJE V KOLESARJA",
+      "TRČENJE V OBJEKT",
+      "TRČENJE V STOJEČE / PARKIRANO VOZILO",
+      "ČELNO TRČENJE"
+    ],
+    "weather": [
+      "DEŽEVNO",
+      "JASNO",
+      "MEGLA",
+      "NEZNANO",
+      "OBLAČNO",
+      "SNEG",
+      "TOČA",
+      "VETER"
+    ],
+    "traffic": [
+      "GOST",
+      "KOLONA VOZIL",
+      "NEZNANO",
+      "REDEK",
+      "TEKOČ (NORMALEN)",
+      "ZASTOJI"
+    ],
+    "roadSurface": [
+      "BLATNO",
+      "KOLESNICE",
+      "MOKRO",
+      "OSTALO",
+      "POLEDENELO - NEPOSIPANO",
+      "POLEDENELO - POSIPANO",
+      "POŠKODOVANO",
+      "SNEŽENO - NEPLUŽENO",
+      "SNEŽENO - PLUŽENO",
+      "SPOLZKO",
+      "STOJEČA VODA",
+      "SUHO",
+      "UDARNE JAME",
+      "VLAŽNO"
+    ],
+    "locationTypes": [
+      "DA",
+      "NE"
+    ]
+  },
+  "chunks": [
+    {
+      "year": 2015,
+      "file": "accidents-2015.json.gz",
+      "records": 17345,
+      "bytes": 441589
+    },
+    {
+      "year": 2016,
+      "file": "accidents-2016.json.gz",
+      "records": 17352,
+      "bytes": 444127
+    },
+    {
+      "year": 2017,
+      "file": "accidents-2017.json.gz",
+      "records": 17192,
+      "bytes": 440447
+    },
+    {
+      "year": 2018,
+      "file": "accidents-2018.json.gz",
+      "records": 17812,
+      "bytes": 455104
+    },
+    {
+      "year": 2019,
+      "file": "accidents-2019.json.gz",
+      "records": 18406,
+      "bytes": 466200
+    },
+    {
+      "year": 2020,
+      "file": "accidents-2020.json.gz",
+      "records": 14514,
+      "bytes": 371579
+    },
+    {
+      "year": 2021,
+      "file": "accidents-2021.json.gz",
+      "records": 16434,
+      "bytes": 419691
+    },
+    {
+      "year": 2022,
+      "file": "accidents-2022.json.gz",
+      "records": 17927,
+      "bytes": 465515
+    },
+    {
+      "year": 2023,
+      "file": "accidents-2023.json.gz",
+      "records": 18984,
+      "bytes": 492964
+    },
+    {
+      "year": 2024,
+      "file": "accidents-2024.json.gz",
+      "records": 20049,
+      "bytes": 524051
+    },
+    {
+      "year": 2025,
+      "file": "accidents-2025.json.gz",
+      "records": 9414,
+      "bytes": 246070
+    }
+  ]
+}

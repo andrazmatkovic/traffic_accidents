@@ -9,17 +9,25 @@ Website files:
 2. styles.css, src/i18n.js, src/app.js
    Static app assets loaded by index.html.
 
-3. accidents.json.gz
-   Compressed dataset loaded by the browser.
+3. data/manifest.json
+   Lists available years, chunks, record counts, and filter options.
 
-4. decompress-worker-json.js
+4. data/accidents-YYYY.json.gz
+   Per-year compressed datasets loaded by the browser.
+
+5. decompress-worker-json.js
    Web Worker that decompresses the dataset.
 
-5. accidents.csv
-   Processed CSV used to regenerate accidents.json.gz.
+6. accidents.csv
+   Processed CSV used to regenerate the website JSON chunks.
 
-6. data/pnYYYY.csv
+7. data/pnYYYY.csv
    Raw Slovenian Police CSV files.
+
+Loading behavior:
+
+  The website loads the latest available year first, then downloads the
+  remaining years in the background.
 
 Run locally:
 
@@ -57,15 +65,15 @@ Common commands:
   # Print quick statistics.
   python3 manage_csv.py stats accidents.csv
 
-  # Regenerate the compressed JSON used by the website.
-  python3 csv_to_json.py accidents.csv accidents.json.gz
+  # Regenerate the compressed JSON chunks used by the website.
+  python3 csv_to_json.py --chunks accidents.csv data
 
 Recommended update flow:
 
   python3 manage_csv.py merge data accidents.csv
   python3 manage_csv.py validate accidents.csv
   python3 manage_csv.py audit data accidents.csv
-  python3 csv_to_json.py accidents.csv accidents.json.gz
+  python3 csv_to_json.py --chunks accidents.csv data
 
 Deploy:
 

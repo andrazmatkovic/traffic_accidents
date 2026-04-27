@@ -10,8 +10,11 @@ The public site is a static GitHub Pages website. It serves:
 
 - `index.html` for the Leaflet map UI.
 - `styles.css`, `src/i18n.js`, and `src/app.js` for static app assets.
-- `accidents.json.gz` for the compressed accident dataset used by the browser.
+- `data/manifest.json` for available years, record counts, and filter options.
+- `data/accidents-YYYY.json.gz` for per-year accident chunks loaded by the browser.
 - `decompress-worker-json.js` to decompress the dataset in a Web Worker.
+
+The site loads the latest available year first, then downloads older years in the background. This keeps the first map render small while still making the all-years view available after hydration.
 
 Run it locally with a web server:
 
@@ -19,7 +22,7 @@ Run it locally with a web server:
 python3 -m http.server 8000
 ```
 
-Then open <http://localhost:8000>. Opening `index.html` directly with `file://` may fail in some browsers because the app fetches `accidents.json.gz`.
+Then open <http://localhost:8000>. Opening `index.html` directly with `file://` may fail in some browsers because the app fetches JSON files from `data/`.
 
 Deploy by pushing to the GitHub Pages branch/source:
 
@@ -44,7 +47,7 @@ python3 manage_csv.py merge data accidents.csv
 Regenerate the browser payload:
 
 ```bash
-python3 csv_to_json.py accidents.csv accidents.json.gz
+python3 csv_to_json.py --chunks accidents.csv data
 ```
 
 Validate the processed CSV:
@@ -71,7 +74,7 @@ Recommended update flow:
 python3 manage_csv.py merge data accidents.csv
 python3 manage_csv.py validate accidents.csv
 python3 manage_csv.py audit data accidents.csv
-python3 csv_to_json.py accidents.csv accidents.json.gz
+python3 csv_to_json.py --chunks accidents.csv data
 ```
 
 ## Useful Commands

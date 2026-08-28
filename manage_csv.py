@@ -23,7 +23,8 @@ DEFAULT_DATA_FOLDER = "data"
 DEFAULT_OUTPUT_FILE = "accidents.csv"
 DEFAULT_START_YEAR = 2015
 DEFAULT_END_YEAR = 2026
-ENCODINGS = ("utf-8", "iso-8859-2", "windows-1250", "cp1250")
+ENCODINGS = ("utf-8", "windows-1250", "cp1250", "iso-8859-2")
+C1_CONTROL_CHARS = re.compile(r"[\u0080-\u009f]")
 REQUIRED_COLUMNS = (
     "ZaporednaStevilkaPN",
     "KlasifikacijaNesrece",
@@ -83,34 +84,44 @@ def should_process_year(year, start_year=None, end_year=None, specific_years=Non
     return True
 
 
+def detect_encoding(csv_file):
+    """Pick the first encoding that decodes the file without producing junk.
+
+    A UnicodeDecodeError is not enough to rule an encoding out here: iso-8859-2
+    maps every byte, so a windows-1250 file decodes "successfully" with S-caron
+    and Z-caron turned into C1 control characters. Those never occur in the
+    source data, so treat them as a failed decode and keep looking.
+    """
+    raw_bytes = Path(csv_file).read_bytes()
+
+    for encoding in ENCODINGS:
+        try:
+            text = raw_bytes.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        if not C1_CONTROL_CHARS.search(text):
+            return encoding
+
+    raise ValueError(f"Could not read {csv_file} with supported encodings")
+
+
 def read_raw_csv(csv_file):
     pd, _, _ = require_processing_deps()
 
-    for encoding in ENCODINGS:
-        try:
-            return pd.read_csv(
-                csv_file,
-                sep=";",
-                encoding=encoding,
-                dtype=str,
-                keep_default_na=False,
-            )
-        except UnicodeDecodeError:
-            continue
-
-    raise ValueError(f"Could not read {csv_file} with supported encodings")
+    return pd.read_csv(
+        csv_file,
+        sep=";",
+        encoding=detect_encoding(csv_file),
+        dtype=str,
+        keep_default_na=False,
+    )
 
 
 def read_raw_csv_rows(csv_file):
-    for encoding in ENCODINGS:
-        try:
-            with open(csv_file, "r", encoding=encoding, newline="") as handle:
-                reader = csv.DictReader(handle, delimiter=";")
-                return reader.fieldnames or [], list(reader)
-        except UnicodeDecodeError:
-            continue
-
-    raise ValueError(f"Could not read {csv_file} with supported encodings")
+    encoding = detect_encoding(csv_file)
+    with open(csv_file, "r", encoding=encoding, newline="") as handle:
+        reader = csv.DictReader(handle, delimiter=";")
+        return reader.fieldnames or [], list(reader)
 
 
 def has_valid_source_coordinates(row):

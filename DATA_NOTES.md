@@ -29,6 +29,30 @@ Run `python3 manage_csv.py audit data accidents.csv` after regenerating data to
 verify that source CSV fields such as `UraPN`, `SifraOdsekaUlice`, and other
 identifier/code fields were not converted or reformatted.
 
+## Source Format Changes
+
+The Police changed the raw file format starting with `pn2025.csv`. Both shapes
+are handled, but the differences are worth knowing before touching the pipeline:
+
+- **Encoding.** `pn2015.csv` to `pn2024.csv` are UTF-8; `pn2025.csv` onward are
+  windows-1250. Encoding is detected per file. Detection cannot rely on decode
+  errors alone, because iso-8859-2 maps every byte and so "succeeds" on a
+  windows-1250 file while turning S-caron and Z-caron into C1 control
+  characters. `detect_encoding` rejects a decode that produces those.
+- **Time.** Up to `pn2024.csv`, `UraPN` is a zero-padded `HH.MM`. From
+  `pn2025.csv` it is a bare hour with no minutes, using the range 0-24 where 24
+  means midnight. `accidents.csv` keeps whichever form the source used, so the
+  audit stays byte-exact; `csv_to_json.py` renders the bare hour as `HH.00` for
+  the website. The `.00` is padding, not a measured value.
+- **Blank categories.** A few rows have an empty `KlasifikacijaNesrece` or
+  `VNaselju`. `csv_to_json.py` labels these `NEDOLOČENO` in the browser payload
+  so they do not appear as an empty filter option. This is distinct from
+  `NEZNANO`, which is a real source category for weather and traffic.
+
+Normalisation for display belongs in `csv_to_json.py`, not in `accidents.csv`.
+The audit compares the processed CSV against the raw source field by field, so
+reformatting the CSV would defeat the check.
+
 ## Known Limitations
 
 - Rows without valid coordinates are excluded from the map.

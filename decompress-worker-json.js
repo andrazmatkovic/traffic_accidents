@@ -6,7 +6,7 @@
 importScripts('https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js');
 
 self.onmessage = async (event) => {
-    const { arrayBuffer } = event.data;
+    const { arrayBuffer, year } = event.data;
     
     try {
         const startTime = performance.now();
@@ -22,6 +22,7 @@ self.onmessage = async (event) => {
         self.postMessage({
             success: true,
             data: data,
+            year: year,
             loadTime: loadTime,
             recordCount: data.length
         });

@@ -1,92 +1,91 @@
-╔════════════════════════════════════════════════════════════════════════════╗
-║                 INTERACTIVE ACCIDENT MAP - QUICK START GUIDE               ║
-║                                                                            ║
-║  Your new CSV-based interactive map is ready! 🎉                          ║
-╚════════════════════════════════════════════════════════════════════════════╝
+TRAFFIC ACCIDENT MAP - QUICK START
+==================================
 
-📂 FILES CREATED:
-================
+Website files:
 
-1. 🗺️ index.html (24 KB)
-   → OPEN THIS IN YOUR BROWSER to see the interactive map
-   → Works offline once loaded
-   → Loads data from JSON files automatically
+1. index.html
+   Open this through GitHub Pages or a local web server.
 
-2. 📊 accidents.csv (550 KB)
-   → Your accident data (3,666 unique locations)
-   → 14 columns with all relevant information
-   → UTF-8 encoded, ready to expand
+2. styles.css, src/i18n.js, src/app.js
+   Static app assets loaded by index.html.
 
-3. 📖 README.md
-   → Complete documentation
-   → Instructions for adding new years of data
-   → Troubleshooting guide
-   → How to customize the map
+3. data/manifest.json
+   Lists available years, chunks, record counts, and filter options.
 
-4. 🛠️  manage_csv.py
-   → Python utility for managing CSV files
-   → Convert coordinates from D96/TM to WGS84
-   → Merge multiple CSV files
-   → Validate CSV structure
-   → Get statistics
+4. data/accidents-YYYY.json.gz
+   Per-year compressed datasets loaded by the browser.
 
+5. decompress-worker-json.js
+   Web Worker that decompresses the dataset.
 
-✨ KEY FEATURES:
-================
+6. accidents.csv
+   Processed CSV used to regenerate the website JSON chunks.
 
-📅 Year Filter
-   → View data from specific years
-   → Automatically detects all years in CSV
-   → Add new years by expanding CSV file
+7. data/pnYYYY.csv
+   Raw Slovenian Police CSV files.
 
-🎨 Visualization Modes
-   → Markers: See individual accidents
-   → Clusters: Group nearby accidents
+Loading behavior:
 
-📈 Live Statistics
-   → Real-time counts as you filter
-   → Breakdown by severity level
+  The website loads the latest available year first, then downloads the
+  remaining years in the background.
 
-🔍 Interactive Map
-   → Click markers for details
-   → Zoom in/out
-   → Pan around
-   → Offline after loading
+Run locally:
 
+  python3 -m http.server 8000
 
-📚 CSV STRUCTURE:
-=================
+Then open:
 
-Your CSV file has these columns:
-  1. ZaporednaStevilkaPN    - Unique accident ID
-  2. year                   - Year (e.g., 2024)
-  3. DatumPN                - Date (DD.MM.YYYY format)
-  4. UraPN                  - Time
-  5. TekstCesteNaselja      - Street name
-  6. TipNesrece             - Accident type
-  7. KlasifikacijaNesrece   - Severity level
-  8. VremenskeOkoliscine    - Weather conditions
-  9. StanjePrometa          - Traffic conditions
-  10. StanjeVozisca         - Road surface condition
-  11. VNaselju              - In settlement? (DA/NE)
-  12. Lokacija              - Location type
-  13. latitude              - WGS84 latitude
-  14. longitude             - WGS84 longitude
+  http://localhost:8000
 
+Setup:
 
-🎯 ADDING NEW DATA:
-===================
+  python3 -m pip install -r requirements.txt
 
-Use Python script
-  
-  # Convert raw data to WGS84 coordinates:
-  python3 manage_csv.py convert pn2025.csv
-  
-  # Merge multiple files:
-  python3 manage_csv.py merge /folder/with/csvs combined.csv
-  
-  # Validate your CSV:
+Common commands:
+
+  # Merge raw data files into accidents.csv.
+  python3 manage_csv.py merge data accidents.csv
+
+  # Merge all available raw data years.
+  python3 manage_csv.py merge data accidents.csv --all-years
+
+  # Merge specific years or year ranges.
+  python3 manage_csv.py merge data accidents.csv --years 2024 2025
+  python3 manage_csv.py merge data accidents.csv --years 2020-2025
+
+  # Convert one raw CSV file to a processed UTF-8 CSV with WGS84 coordinates.
+  python3 manage_csv.py convert data/pn2025.csv
+
+  # Validate the processed CSV.
   python3 manage_csv.py validate accidents.csv
-  
-  # Get statistics:
+
+  # Check that raw source fields were preserved exactly.
+  python3 manage_csv.py audit data accidents.csv
+
+  # Print quick statistics.
   python3 manage_csv.py stats accidents.csv
+
+  # Regenerate the compressed JSON chunks used by the website.
+  python3 csv_to_json.py --chunks accidents.csv data
+
+Recommended update flow:
+
+  python3 manage_csv.py merge data accidents.csv
+  python3 manage_csv.py validate accidents.csv
+  python3 manage_csv.py audit data accidents.csv
+  python3 csv_to_json.py --chunks accidents.csv data
+
+Deploy:
+
+  git push origin main
+
+CSV notes:
+
+  The processing script reads raw CSV columns as text so values such as
+  08.10, 00055, and 06 keep their original formatting.
+
+  The script converts D96/TM coordinates from GeoKoordinataX and
+  GeoKoordinataY to WGS84 latitude and longitude.
+
+  The map dataset is one row per accident, not one row per participant.
+  See DATA_NOTES.md for source, limitations, privacy, and attribution notes.

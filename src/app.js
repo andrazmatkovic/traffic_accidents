@@ -510,6 +510,8 @@ function getSeverityColor(severity) {
     if (severity.includes('SMRTNI')) return '#8b0000';
     if (severity.includes('HUDO TELESNO') || severity.includes('HUDO')) return '#dc3545';
     if (severity.includes('LAŽJ') || severity.includes('LAJO')) return '#fd7e14';
+    // Property damage, and NEDOLOČENO for the rare row where the source states
+    // no severity at all. Both fall through to the same colour deliberately.
     return '#0066cc';
 }
 
@@ -782,6 +784,10 @@ function updateStats(accidents) {
         if (a.KlasifikacijaNesrece.includes('SMRTNI')) stats.fatal++;
         else if (a.KlasifikacijaNesrece.includes('HUDO TELESNO') || a.KlasifikacijaNesrece.includes('HUDO')) stats.serious++;
         else if (a.KlasifikacijaNesrece.includes('LAŽJ') || a.KlasifikacijaNesrece.includes('LAJO')) stats.minor++;
+        // NEDOLOČENO lands here too. The source leaves severity blank on a
+        // single row out of 202k, and counting it as property damage keeps the
+        // four buckets summing to the total, which is worth more than isolating
+        // one unclassifiable accident.
         else stats.property++;
     });
     

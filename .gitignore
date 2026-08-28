@@ -4,3 +4,6 @@ __pycache__/
 venv/
 .DS_Store
 *_converted.csv
+
+# Build artifact: regenerate with `python3 manage_csv.py build`
+accidents.csv

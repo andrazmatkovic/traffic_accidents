@@ -39,6 +39,28 @@ def category_value(row, field):
     return row.get(field, "").strip() or UNSPECIFIED
 
 
+def time_value(row):
+    """Render UraPN as HH.MM regardless of which source format it came in.
+
+    Files up to pn2024.csv give a zero-padded HH.MM time. From pn2025.csv the
+    Police publish a bare hour instead (0-24), which would otherwise show up
+    next to full timestamps as a lone "4". The hour is already 24-hour, so it
+    only needs padding; minutes are not in the source and are rendered as .00.
+    Hour 24 means midnight and becomes 00.00, since the earlier files only ever
+    used 00-23.
+    """
+    raw = row.get("UraPN", "").strip()
+
+    if not raw.isdigit():
+        return raw
+
+    hour = int(raw)
+    if not 0 <= hour <= 24:
+        return raw
+
+    return f"{hour % 24:02d}.00"
+
+
 def read_accidents(csv_file):
     with open(csv_file, "r", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
@@ -65,7 +87,7 @@ def read_accidents(csv_file):
                         "VNaselju": category_value(row, "VNaselju"),
                         "TekstCesteNaselja": row.get("TekstCesteNaselja", ""),
                         "DatumPN": row.get("DatumPN", ""),
-                        "UraPN": row.get("UraPN", ""),
+                        "UraPN": time_value(row),
                     }
             except (ValueError, KeyError):
                 continue

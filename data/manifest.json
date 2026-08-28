@@ -154,13 +154,13 @@
       "year": 2025,
       "file": "accidents-2025.json.gz",
       "records": 17021,
-      "bytes": 419405
+      "bytes": 422004
     },
     {
       "year": 2026,
       "file": "accidents-2026.json.gz",
       "records": 9310,
-      "bytes": 229645
+      "bytes": 231114
     }
   ]
 }

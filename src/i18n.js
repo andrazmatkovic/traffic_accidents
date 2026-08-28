@@ -11,6 +11,8 @@ const categoryTranslations = {
         'LAJO TELESNO': 'Lažje telesno',
         'MATERIALNA ŠKODA': 'Materialna škoda',
         'Z MATERIALNO ŠKODO': 'Z materialno škodo',
+        // Placeholder for values the source data leaves blank
+        'NEDOLOČENO': 'Nedoločeno',
     },
     en: {
         // Severity categories
@@ -24,6 +26,8 @@ const categoryTranslations = {
         'LAJO TELESNO': 'Minor Injury',
         'MATERIALNA ŠKODA': 'Property Damage',
         'Z MATERIALNO ŠKODO': 'Property Damage',
+        // Placeholder for values the source data leaves blank
+        'NEDOLOČENO': 'Unspecified',
     }
 };
 

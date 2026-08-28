@@ -15,6 +15,10 @@ from collections import defaultdict
 from pathlib import Path
 
 
+# The source leaves a few categorical values blank. A blank renders as an empty,
+# unselectable option in the filter dropdowns, so it gets an explicit value.
+UNSPECIFIED = "NEDOLOČENO"
+
 FIELDS = (
     "latitude",
     "longitude",
@@ -29,6 +33,10 @@ FIELDS = (
     "DatumPN",
     "UraPN",
 )
+
+
+def category_value(row, field):
+    return row.get(field, "").strip() or UNSPECIFIED
 
 
 def read_accidents(csv_file):
@@ -49,12 +57,12 @@ def read_accidents(csv_file):
                         "latitude": round(lat, 6),
                         "longitude": round(lon, 6),
                         "year": year,
-                        "KlasifikacijaNesrece": row.get("KlasifikacijaNesrece", ""),
-                        "TipNesrece": row.get("TipNesrece", ""),
-                        "VremenskeOkoliscine": row.get("VremenskeOkoliscine", ""),
-                        "StanjePrometa": row.get("StanjePrometa", ""),
-                        "StanjeVozisca": row.get("StanjeVozisca", ""),
-                        "VNaselju": row.get("VNaselju", ""),
+                        "KlasifikacijaNesrece": category_value(row, "KlasifikacijaNesrece"),
+                        "TipNesrece": category_value(row, "TipNesrece"),
+                        "VremenskeOkoliscine": category_value(row, "VremenskeOkoliscine"),
+                        "StanjePrometa": category_value(row, "StanjePrometa"),
+                        "StanjeVozisca": category_value(row, "StanjeVozisca"),
+                        "VNaselju": category_value(row, "VNaselju"),
                         "TekstCesteNaselja": row.get("TekstCesteNaselja", ""),
                         "DatumPN": row.get("DatumPN", ""),
                         "UraPN": row.get("UraPN", ""),
@@ -109,15 +117,10 @@ def convert_csv_to_year_chunks(csv_file, output_dir="data"):
         values["years"].add(year)
         values["severities"].add(accident["KlasifikacijaNesrece"])
         values["types"].add(accident["TipNesrece"])
-
-        if accident["VremenskeOkoliscine"]:
-            values["weather"].add(accident["VremenskeOkoliscine"])
-        if accident["StanjePrometa"]:
-            values["traffic"].add(accident["StanjePrometa"])
-        if accident["StanjeVozisca"]:
-            values["roadSurface"].add(accident["StanjeVozisca"])
-        if accident["VNaselju"]:
-            values["locationTypes"].add(accident["VNaselju"])
+        values["weather"].add(accident["VremenskeOkoliscine"])
+        values["traffic"].add(accident["StanjePrometa"])
+        values["roadSurface"].add(accident["StanjeVozisca"])
+        values["locationTypes"].add(accident["VNaselju"])
 
     years = sorted(by_year)
     manifest = {

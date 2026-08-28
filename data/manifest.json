@@ -30,7 +30,7 @@
   ],
   "filters": {
     "severities": [
-      "",
+      "NEDOLOČENO",
       "S HUDO TELESNO POŠKODBO",
       "S SMRTNIM IZIDOM",
       "Z LAŽJO TELESNO POŠKODBO",
@@ -85,7 +85,8 @@
     ],
     "locationTypes": [
       "DA",
-      "NE"
+      "NE",
+      "NEDOLOČENO"
     ]
   },
   "chunks": [
@@ -153,13 +154,13 @@
       "year": 2025,
       "file": "accidents-2025.json.gz",
       "records": 17021,
-      "bytes": 419379
+      "bytes": 419405
     },
     {
       "year": 2026,
       "file": "accidents-2026.json.gz",
       "records": 9310,
-      "bytes": 229637
+      "bytes": 229645
     }
   ]
 }

@@ -286,6 +286,23 @@ def merge_all_files(data_folder, output_file, start_year=None, end_year=None, ye
     return True
 
 
+def is_plausible_source_time(value):
+    """Accept either UraPN format the Police have published.
+
+    Files up to pn2024.csv use a zero-padded HH.MM time. From pn2025.csv the
+    hour is published on its own, with no minutes. Both are valid source data,
+    so validation checks the ranges rather than insisting on one shape. Hour 24
+    occurs in the newer files and means midnight.
+    """
+    match = re.fullmatch(r"(\d{1,2})(?:\.(\d{2}))?", value)
+    if not match:
+        return False
+
+    hour = int(match.group(1))
+    minute = int(match.group(2) or 0)
+    return 0 <= hour <= 24 and 0 <= minute <= 59
+
+
 def validate_file(csv_file):
     errors = []
     warnings = []
@@ -317,7 +334,7 @@ def validate_file(csv_file):
                     errors.append(f"Row {row_number}: invalid {column} '{value}'")
 
             time_value = row.get("UraPN", "")
-            if time_value and not re.fullmatch(r"\d{1,2}\.\d{2}", time_value):
+            if time_value and not is_plausible_source_time(time_value):
                 warnings.append(f"Row {row_number}: suspicious UraPN '{time_value}'")
 
     if duplicate_keys:

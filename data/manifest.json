@@ -1,5 +1,5 @@
 {
-  "defaultYear": 2025,
+  "defaultYear": 2026,
   "years": [
     2015,
     2016,
@@ -11,7 +11,8 @@
     2022,
     2023,
     2024,
-    2025
+    2025,
+    2026
   ],
   "fields": [
     "latitude",
@@ -29,16 +30,23 @@
   ],
   "filters": {
     "severities": [
+      "",
+      "S HUDO TELESNO POKODBO",
       "S HUDO TELESNO POŠKODBO",
       "S SMRTNIM IZIDOM",
+      "Z LAJO TELESNO POKODBO",
       "Z LAŽJO TELESNO POŠKODBO",
+      "Z MATERIALNO KODO",
       "Z MATERIALNO ŠKODO"
     ],
     "types": [
       "BOČNO TRČENJE",
       "NALETNO TRČENJE",
+      "OPLAENJE",
       "OPLAŽENJE",
       "OSTALO",
+      "POVOENJE PECA",
+      "POVOENJE IVALI",
       "POVOŽENJE PEŠCA",
       "POVOŽENJE ŽIVALI",
       "PREVRNITEV VOZILA",
@@ -48,6 +56,7 @@
       "ČELNO TRČENJE"
     ],
     "weather": [
+      "DEEVNO",
       "DEŽEVNO",
       "JASNO",
       "MEGLA",
@@ -72,13 +81,17 @@
       "OSTALO",
       "POLEDENELO - NEPOSIPANO",
       "POLEDENELO - POSIPANO",
+      "POKODOVANO",
       "POŠKODOVANO",
+      "SNEENO - NEPLUENO",
+      "SNEENO - PLUENO",
       "SNEŽENO - NEPLUŽENO",
       "SNEŽENO - PLUŽENO",
       "SPOLZKO",
       "STOJEČA VODA",
       "SUHO",
       "UDARNE JAME",
+      "VLANO",
       "VLAŽNO"
     ],
     "locationTypes": [
@@ -150,8 +163,14 @@
     {
       "year": 2025,
       "file": "accidents-2025.json.gz",
-      "records": 9414,
-      "bytes": 246070
+      "records": 17021,
+      "bytes": 419363
+    },
+    {
+      "year": 2026,
+      "file": "accidents-2026.json.gz",
+      "records": 9310,
+      "bytes": 229627
     }
   ]
 }

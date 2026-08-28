@@ -38,7 +38,20 @@ Install the data-processing dependencies:
 python3 -m pip install -r requirements.txt
 ```
 
-Merge raw Police CSV files from `data/pnYYYY.csv` into `accidents.csv`:
+Rebuild everything the website serves in one step -- merge, validate, audit,
+and write the JSON chunks:
+
+```bash
+python3 manage_csv.py build
+```
+
+`accidents.csv` is an intermediate, not a deliverable: nothing at runtime reads
+it and it is reproducible from the raw files, so `build` removes it once the
+chunks exist. Pass `--keep-csv` to hold on to it, and note that it is kept
+automatically if validation or the audit fails.
+
+The individual steps are still available. Merge raw Police CSV files from
+`data/pnYYYY.csv` into `accidents.csv`:
 
 ```bash
 python3 manage_csv.py merge data accidents.csv

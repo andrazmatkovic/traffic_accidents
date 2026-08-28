@@ -43,6 +43,9 @@ Setup:
 
 Common commands:
 
+  # Rebuild everything the website serves, in one step.
+  python3 manage_csv.py build
+
   # Merge raw data files into accidents.csv.
   python3 manage_csv.py merge data accidents.csv
 
@@ -69,6 +72,13 @@ Common commands:
   python3 csv_to_json.py --chunks accidents.csv data
 
 Recommended update flow:
+
+  python3 download_data.py
+  python3 manage_csv.py build
+
+  The build step runs the merge, validation, and audit, writes the JSON
+  chunks, and then removes accidents.csv, which is only an intermediate.
+  Use --keep-csv to retain it. To run the stages separately:
 
   python3 manage_csv.py merge data accidents.csv
   python3 manage_csv.py validate accidents.csv

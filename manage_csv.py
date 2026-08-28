@@ -4,6 +4,7 @@ Manage Slovenian traffic accident CSV files.
 
 Commands:
   convert   Convert one raw pnYYYY.csv file to UTF-8 CSV with WGS84 coordinates.
+  build     Merge, validate, audit, and write the website chunks in one step.
   merge     Convert and merge raw data/pnYYYY.csv files into accidents.csv.
   validate  Validate a processed CSV file.
   audit     Compare processed CSV values against raw source CSV values.
@@ -452,6 +453,46 @@ def print_stats(csv_file):
         print(f"  {severity or '(blank)'}: {count}")
 
 
+def build_dataset(data_folder, output_dir, csv_file, start_year=None, end_year=None,
+                  years=None, keep_csv=False):
+    """Merge, check, and publish the browser payload in one pass.
+
+    accidents.csv is an intermediate here, not a deliverable: nothing at runtime
+    reads it and it is fully reproducible from data/pnYYYY.csv, so it is removed
+    once the chunks exist. It is kept on failure, and with --keep-csv, because
+    validate and audit both report row numbers into it.
+    """
+    import csv_to_json
+
+    if not merge_all_files(data_folder, csv_file, start_year=start_year,
+                           end_year=end_year, years=years):
+        return False
+
+    print("\n" + "=" * 60)
+    print("Validating...")
+    if not validate_file(csv_file):
+        print(f"\nValidation failed. Keeping {csv_file} for inspection.")
+        return False
+
+    print("\n" + "=" * 60)
+    print("Auditing against raw sources...")
+    if not audit_raw_preservation(data_folder, csv_file, start_year=start_year,
+                                  end_year=end_year, years=years):
+        print(f"\nAudit failed. Keeping {csv_file} for inspection.")
+        return False
+
+    print("\n" + "=" * 60)
+    csv_to_json.convert_csv_to_year_chunks(csv_file, output_dir)
+
+    if keep_csv:
+        print(f"\nKeeping {csv_file}.")
+    else:
+        os.remove(csv_file)
+        print(f"\nRemoved {csv_file}; regenerate it with `merge` if you need it.")
+
+    return True
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description="Manage Slovenian traffic accident CSV files")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -481,6 +522,20 @@ def build_parser():
     audit_parser.add_argument("--end-year", type=int, default=DEFAULT_END_YEAR)
     audit_parser.add_argument("--years", nargs="+", help="Specific years or ranges, e.g. 2024 2025 or 2020-2025")
     audit_parser.add_argument("--all-years", action="store_true", help="Ignore default year range")
+
+    build_parser_cmd = subparsers.add_parser(
+        "build", help="Merge, validate, audit, and write the website chunks in one step"
+    )
+    build_parser_cmd.add_argument("data_folder", nargs="?", default=DEFAULT_DATA_FOLDER)
+    build_parser_cmd.add_argument("output_dir", nargs="?", default=DEFAULT_DATA_FOLDER)
+    build_parser_cmd.add_argument("--csv-file", default=DEFAULT_OUTPUT_FILE,
+                                  help="Path for the intermediate CSV")
+    build_parser_cmd.add_argument("--start-year", type=int, default=DEFAULT_START_YEAR)
+    build_parser_cmd.add_argument("--end-year", type=int, default=DEFAULT_END_YEAR)
+    build_parser_cmd.add_argument("--years", nargs="+", help="Specific years or ranges, e.g. 2024 2025 or 2020-2025")
+    build_parser_cmd.add_argument("--all-years", action="store_true", help="Ignore default year range")
+    build_parser_cmd.add_argument("--keep-csv", action="store_true",
+                                  help="Keep the intermediate CSV instead of removing it")
 
     stats_parser = subparsers.add_parser("stats", help="Print quick dataset statistics")
     stats_parser.add_argument("csv_file")
@@ -522,6 +577,21 @@ def main(argv=None):
             start_year=start_year,
             end_year=end_year,
             years=years,
+        )
+        return 0 if ok else 1
+
+    if args.command == "build":
+        years = parse_years(args.years)
+        start_year = None if args.all_years or years else args.start_year
+        end_year = None if args.all_years or years else args.end_year
+        ok = build_dataset(
+            args.data_folder,
+            args.output_dir,
+            args.csv_file,
+            start_year=start_year,
+            end_year=end_year,
+            years=years,
+            keep_csv=args.keep_csv,
         )
         return 0 if ok else 1
 

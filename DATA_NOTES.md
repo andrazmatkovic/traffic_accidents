@@ -25,6 +25,12 @@ small `data/manifest.json` file and per-year `data/accidents-YYYY.json.gz`
 chunks. The GitHub Pages website loads the newest year first and downloads the
 remaining years in the background.
 
+`python3 manage_csv.py build` runs the whole sequence and then deletes
+`accidents.csv`, which is an intermediate rather than a published artifact: the
+website never fetches it, and it can be rebuilt from `data/pnYYYY.csv` at any
+time. It is not tracked in git, so that a 76 MB blob is not committed on every
+data refresh.
+
 Run `python3 manage_csv.py audit data accidents.csv` after regenerating data to
 verify that source CSV fields such as `UraPN`, `SifraOdsekaUlice`, and other
 identifier/code fields were not converted or reformatted.

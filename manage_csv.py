@@ -22,7 +22,7 @@ from pathlib import Path
 DEFAULT_DATA_FOLDER = "data"
 DEFAULT_OUTPUT_FILE = "accidents.csv"
 DEFAULT_START_YEAR = 2015
-DEFAULT_END_YEAR = 2025
+DEFAULT_END_YEAR = 2026
 ENCODINGS = ("utf-8", "iso-8859-2", "windows-1250", "cp1250")
 REQUIRED_COLUMNS = (
     "ZaporednaStevilkaPN",
